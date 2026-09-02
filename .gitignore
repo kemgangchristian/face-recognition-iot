@@ -1,0 +1,29 @@
+# Python 
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Modèles ML (poids lourds, ne vont pas dans Git classique)
+edge/models/*.tflite
+edge/models/*.onnx
+
+# Bases de données locales (contiennent des données biométriques !)
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets et config sensible
+.env
+*.pem
+*.key
+
+# Fichiers OS/éditeur
+.DS_Store
+.vscode/
+*.log
+
+# Docker
+*.tar

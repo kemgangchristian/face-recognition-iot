@@ -26,7 +26,6 @@ Si le projet est finalement **mono-site sans backend central**, l'Epic 7 (Backen
 ---
 
 ## EPIC 1 — Capture Vidéo & Détection de Visage (Edge)
-**Statut : Terminé (sauf Story 1.4, bloquée — nécessite Raspberry Pi configuré avec caméra CSI)**
 
 **Objectif** : obtenir un flux vidéo exploitable et détecter les visages en temps réel sur le Pi.
 

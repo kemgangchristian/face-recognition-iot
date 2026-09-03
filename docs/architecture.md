@@ -59,8 +59,9 @@ FAISS tourne en mémoire locale, suffisant jusqu'à plusieurs milliers d'identit
 
 ## 5. Historique des décisions
 
-| Date     | Décision                                | Raison                                                                                               |
-|----------|-----------------------------------------|------------------------------------------------------------------------------------------------------|
-| Sprint 0 | Architecture multi-sites confirmée      | Besoin de supervision centralisée sur plusieurs Raspberry Pi                                         |
-| Sprint 0 | Caméra CSI officielle retenue (pas USB) | Meilleure intégration matérielle native au Pi                                                        |
-| Sprint 0 | Inférence CPU pur pour la V1            | Pas de budget accélérateur matériel au démarrage ; benchmark prévu en Epic 6.2 avant décision finale |
+| Date       | Décision                                                   | Raison                                                                                                                                                                                                                                    |
+|------------|------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Sprint 0   | Architecture multi-sites confirmée                         | Besoin de supervision centralisée sur plusieurs Raspberry Pi                                                                     |
+| Sprint 0   | Caméra CSI officielle retenue (pas USB)                    | Meilleure intégration matérielle native au Pi                                                                     |
+| Sprint 0   | Inférence CPU pur pour la V1                               | Pas de budget accélérateur matériel au démarrage ; benchmark prévu en Epic 6.2 avant décision finale                                                        |
+| Sprint 3-4 | Seuil de netteté (QualityFilter) fixé à 5.0 sur webcam Mac | Valeur empirique mesurée en conditions réelles (webcam laptop compressée) ; à recalibrer sur caméra CSI Pi en Story 1.4, capteur/pipeline différents |

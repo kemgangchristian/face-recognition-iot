@@ -65,3 +65,4 @@ FAISS tourne en mémoire locale, suffisant jusqu'à plusieurs milliers d'identit
 | Sprint 0   | Caméra CSI officielle retenue (pas USB)                    | Meilleure intégration matérielle native au Pi                                                                     |
 | Sprint 0   | Inférence CPU pur pour la V1                               | Pas de budget accélérateur matériel au démarrage ; benchmark prévu en Epic 6.2 avant décision finale                                                        |
 | Sprint 3-4 | Seuil de netteté (QualityFilter) fixé à 5.0 sur webcam Mac | Valeur empirique mesurée en conditions réelles (webcam laptop compressée) ; à recalibrer sur caméra CSI Pi en Story 1.4, capteur/pipeline différents |
+| Sprint 5-6 | Léger tremblement visuel du crop aligné accepté sans lissage temporel | Sans impact sur la qualité d'embedding (extraction frame par frame indépendante) ; lissage temporel des landmarks noté comme amélioration facultative future |

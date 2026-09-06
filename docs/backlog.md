@@ -41,6 +41,7 @@ Si le projet est finalement **mono-site sans backend central**, l'Epic 7 (Backen
 ---
 
 ## EPIC 2 — Alignement & Extraction d'Embedding (Edge)
+**Statut : Terminé (sauf Story 2.5, bloquée — nécessite Raspberry Pi configuré avec caméra CSI)**
 
 **Objectif** : transformer chaque visage détecté en une signature numérique exploitable pour la reconnaissance.
 

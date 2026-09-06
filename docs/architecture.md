@@ -19,36 +19,54 @@ Chaque étape est un module Python indépendant dans `edge/src/`, testable isol�
 Alternative écartée : MTCNN, RetinaFace (trop lourds pour CPU ARM sans accélération matérielle).
 YuNet est intégré nativement à OpenCV ≥ 4.5.4, quantifié, pensé pour l'embarqué.
 
-### Extraction d'embedding — MobileFaceNet
-Alternative écartée : ArcFace sur backbone ResNet100 (précis mais ~100 Mo+, trop lourd pour un Pi).
-MobileFaceNet reprend la loss ArcFace (angular margin) sur un backbone mobile : précision proche, poids ~4 Mo.
+### Extraction d'embedding — SFace (OpenCV Zoo)
+Alternative écartée : MobileFaceNet via InsightFace (licence recherche non-commerciale
+uniquement, incompatible avec un usage professionnel/commercial).
+SFace provient du même dépôt officiel qu'YuNet (OpenCV Zoo), licence Apache-2.0
+permissive, et est nativement supporté par OpenCV via `cv2.FaceRecognizerSF` —
+conçu par l'équipe OpenCV pour fonctionner directement avec YuNet.
 
-### Moteur d'inférence — TensorFlow Lite
-Alternative valable : ONNX Runtime (équivalent, à réévaluer si besoin en cours de projet).
-Choix motivé par le support ARM64 mature et la quantification INT8 native.
+### Alignement pour l'embedding — `cv2.FaceRecognizerSF.alignCrop()`
+Le module maison `edge/src/recognition/face_aligner.py` (Story 2.2) utilise des
+positions de référence génériques de type ArcFace/InsightFace, adaptées à
+MobileFaceNet — pas garanties compatibles avec le préprocessing attendu par SFace.
+Pour l'extraction d'embedding réelle, on utilise donc `alignCrop()`, natif à
+`FaceRecognizerSF`, qui garantit un alignement exactement conforme à
+l'entraînement du modèle. `face_aligner.py` est conservé comme utilitaire
+générique et réutilisable (déjà testé visuellement), au cas où un autre modèle
+d'embedding serait adopté plus tard.
+
+### Moteur d'inférence — TensorFlow Lite / OpenCV DNN
+Pour YuNet et SFace, l'inférence passe directement par le module DNN natif
+d'OpenCV (`cv2.FaceDetectorYN`, `cv2.FaceRecognizerSF`) — pas besoin de
+TensorFlow Lite ou ONNX Runtime séparés pour ces deux modèles spécifiquement.
+TensorFlow Lite reste l'option de référence si un futur modèle (ex: modèle de
+classification additionnel) nécessite un moteur d'inférence dédié.
 
 ### Stockage edge — SQLite (chiffré)
-Alternative écartée : PostgreSQL en local sur le Pi (inutile : consomme des ressources pour rien
-sur un device à ressources limitées, sans bénéfice puisque le Pi fonctionne en autonome).
+Alternative écartée : PostgreSQL en local sur le Pi (inutile : consomme des
+ressources pour rien sur un device à ressources limitées, sans bénéfice
+puisque le Pi fonctionne en autonome).
 SQLite = zéro dépendance serveur, fonctionnement garanti hors-ligne.
 
 ### Stockage central — PostgreSQL
-Utilisé uniquement côté backend (serveur), pour la supervision multi-sites : requêtes
-relationnelles complexes, gestion de la concurrence multi-Pi, reporting.
+Utilisé uniquement côté backend (serveur), pour la supervision multi-sites :
+requêtes relationnelles complexes, gestion de la concurrence multi-Pi, reporting.
 
 ### Recherche vectorielle — FAISS (mode CPU)
-Alternative écartée : vector DB serveur (Milvus, Qdrant) — trop lourd pour un device isolé.
-FAISS tourne en mémoire locale, suffisant jusqu'à plusieurs milliers d'identités enrôlées.
+Alternative écartée : vector DB serveur (Milvus, Qdrant) — trop lourd pour un
+device isolé. FAISS tourne en mémoire locale, suffisant jusqu'à plusieurs
+milliers d'identités enrôlées.
 
 ## 3. Séparation edge / backend
 
-| Aspect                  | Edge (Raspberry Pi) | Backend central |
-|-------------------------|------------------------------------------|-------------------------------------------|
-| Architecture matérielle | ARM64                                    | x86_64                                    |
-| Rôle                    | Traitement temps réel, décision locale   | Supervision, audit, propagation identités |
-| Dépendance réseau       | Aucune pour fonctionner                  | Requise pour la synchronisation           |
-| Base de données         | SQLite (locale, chiffrée)                | PostgreSQL                                |
-| Déploiement             | Image Docker ARM64 via Jenkins + Ansible | Image Docker x86_64 via Jenkins           |
+| Aspect | Edge (Raspberry Pi) | Backend central |
+|---|---|---|
+| Architecture matérielle | ARM64 | x86_64 |
+| Rôle | Traitement temps réel, décision locale | Supervision, audit, propagation identités |
+| Dépendance réseau | Aucune pour fonctionner | Requise pour la synchronisation |
+| Base de données | SQLite (locale, chiffrée) | PostgreSQL |
+| Déploiement | Image Docker ARM64 via Jenkins + Ansible | Image Docker x86_64 via Jenkins |
 
 ## 4. Sécurité (rappel des principes, détaillés en Epic 9)
 
@@ -59,10 +77,12 @@ FAISS tourne en mémoire locale, suffisant jusqu'à plusieurs milliers d'identit
 
 ## 5. Historique des décisions
 
-| Date       | Décision                                                   | Raison                                                                                                                                                                                                                                    |
-|------------|------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Sprint 0   | Architecture multi-sites confirmée                         | Besoin de supervision centralisée sur plusieurs Raspberry Pi                                                                     |
-| Sprint 0   | Caméra CSI officielle retenue (pas USB)                    | Meilleure intégration matérielle native au Pi                                                                     |
-| Sprint 0   | Inférence CPU pur pour la V1                               | Pas de budget accélérateur matériel au démarrage ; benchmark prévu en Epic 6.2 avant décision finale                                                        |
+| Date | Décision | Raison |
+|---|---|---|
+| Sprint 0 | Architecture multi-sites confirmée | Besoin de supervision centralisée sur plusieurs Raspberry Pi |
+| Sprint 0 | Caméra CSI officielle retenue (pas USB) | Meilleure intégration matérielle native au Pi |
+| Sprint 0 | Inférence CPU pur pour la V1 | Pas de budget accélérateur matériel au démarrage ; benchmark prévu en Epic 6.2 avant décision finale |
 | Sprint 3-4 | Seuil de netteté (QualityFilter) fixé à 5.0 sur webcam Mac | Valeur empirique mesurée en conditions réelles (webcam laptop compressée) ; à recalibrer sur caméra CSI Pi en Story 1.4, capteur/pipeline différents |
 | Sprint 5-6 | Léger tremblement visuel du crop aligné accepté sans lissage temporel | Sans impact sur la qualité d'embedding (extraction frame par frame indépendante) ; lissage temporel des landmarks noté comme amélioration facultative future |
+| Sprint 5-6 | MobileFaceNet (InsightFace) écarté, SFace adopté | Licence InsightFace = recherche non-commerciale uniquement (bloquant pour usage professionnel). SFace = même dépôt officiel qu'YuNet (OpenCV Zoo), licence Apache-2.0 permissive |
+| Sprint 5-6 | Alignement pour l'embedding via `cv2.FaceRecognizerSF.alignCrop()` natif, pas via `FaceAligner` maison | Garantit la compatibilité exacte avec le préprocessing attendu par SFace ; `FaceAligner` conservé comme utilitaire générique réutilisable |

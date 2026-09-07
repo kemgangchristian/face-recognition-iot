@@ -30,7 +30,7 @@ class Database:
 
     def connect(self) -> None:
         """Ouvre la connexion à la base et active les contraintes de clé étrangère."""
-        self._connection = sqlite3.connect(self.db_path)
+        self._connection = sqlite3.connect(self.db_path, check_same_thread=False)
         # SQLite désactive les FOREIGN KEY par défaut, contrairement à
         # PostgreSQL — sans cette ligne, ON DELETE CASCADE/SET NULL du
         # schéma seraient silencieusement ignorés.
@@ -68,4 +68,3 @@ class Database:
         if self._connection is not None:
             self._connection.close()
             self._connection = None
-            

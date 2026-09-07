@@ -113,4 +113,62 @@ class EnrollmentService:
         conn.commit()
 
         return cursor.rowcount > 0
+
+
     
+    def log_access_attempt(self, identity_id, matched: bool, confidence: float) -> None:
+        """
+        Enregistre une tentative de reconnaissance dans l'historique d'audit.
+
+        Args:
+            identity_id: id de l'identité reconnue, ou None si inconnu.
+            matched: True si une identité a été reconnue.
+            confidence: score de confiance du matching.
+        """
+        conn = self.db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO access_logs (identity_id, matched, confidence_score) VALUES (?, ?, ?)",
+            (identity_id, matched, confidence)
+        )
+        conn.commit()
+
+    def get_access_logs(self, limit: int = 100) -> list[dict]:
+        """
+        Récupère l'historique des tentatives de reconnaissance, du plus récent
+        au plus ancien. Utilise un LEFT JOIN (pas INNER JOIN) pour continuer
+        à afficher les logs même si l'identité associée a été supprimée
+        depuis (droit à l'effacement RGPD, Story 3.3) — le nom apparaît
+        alors comme None plutôt que de faire disparaître le log d'audit.
+
+        Args:
+            limit: nombre maximum de logs à retourner.
+
+        Returns:
+            list[dict]: logs avec id, full_name (ou None), matched,
+                        confidence_score, timestamp.
+        """
+        conn = self.db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT access_logs.id, identities.full_name, access_logs.matched,
+                   access_logs.confidence_score, access_logs.timestamp
+            FROM access_logs
+            LEFT JOIN identities ON access_logs.identity_id = identities.id
+            ORDER BY access_logs.timestamp DESC
+            LIMIT ?
+            """,
+            (limit,)
+        )
+
+        return [
+            {
+                "id": row[0],
+                "full_name": row[1],
+                "matched": bool(row[2]),
+                "confidence": row[3],
+                "timestamp": row[4],
+            }
+            for row in cursor.fetchall()
+        ]

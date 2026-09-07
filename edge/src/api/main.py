@@ -114,6 +114,11 @@ def verify(image: UploadFile = File(...)):
 
     with db_lock:
         result = matcher.match(embedding)
+        enrollment.log_access_attempt(
+            identity_id=result["identity_id"],
+            matched=result["matched"],
+            confidence=result["confidence"],
+        )
 
     event_publisher.publish_verification_event(
         matched=result["matched"],
@@ -122,3 +127,20 @@ def verify(image: UploadFile = File(...)):
     )
 
     return result
+
+
+
+@app.get("/logs")
+def get_logs(limit: int = 100):
+    """
+    Récupère l'historique des tentatives de reconnaissance, du plus récent
+    au plus ancien.
+
+    Args:
+        limit: nombre maximum de logs à retourner (défaut 100).
+    """
+    with db_lock:
+        logs = enrollment.get_access_logs(limit=limit)
+
+    return {"count": len(logs), "logs": logs}
+

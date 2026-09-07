@@ -86,6 +86,7 @@ Si le projet est finalement **mono-site sans backend central**, l'Epic 7 (Backen
 ---
 
 ## EPIC 5 — Orchestration & API Locale (Edge)
+**Statut : Terminé**
 
 **Objectif** : exposer les fonctionnalités du Pi à d'autres systèmes (badgeuse, alarme, dashboard local).
 

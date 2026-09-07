@@ -5,10 +5,10 @@ Story 5.1 — Epic 5.
 
 import sys
 import os
-import threading
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import threading
 import numpy as np
 import cv2
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
@@ -20,6 +20,7 @@ from storage.database import Database
 from storage.encryption import EncryptionManager
 from storage.enrollment import EnrollmentService
 from matching.matcher import FaceMatcher
+from mqtt.publisher import EventPublisher
 
 
 app = FastAPI(title="Face Recognition IoT - API Edge", version="0.1.0")
@@ -38,6 +39,7 @@ enrollment = EnrollmentService(db, encryption)
 # Protège les accès concurrents à la connexion SQLite partagée entre threads
 # (FastAPI exécute chaque requête dans un thread différent du pool).
 db_lock = threading.Lock()
+event_publisher = EventPublisher()
 matcher = FaceMatcher(enrollment, embedder, threshold=0.5)
 
 
@@ -109,8 +111,14 @@ def verify(image: UploadFile = File(...)):
     face = detect_single_valid_face(frame)
 
     embedding = embedder.extract(frame, face)
-    
+
     with db_lock:
         result = matcher.match(embedding)
+
+    event_publisher.publish_verification_event(
+        matched=result["matched"],
+        full_name=result["full_name"],
+        confidence=result["confidence"],
+    )
 
     return result

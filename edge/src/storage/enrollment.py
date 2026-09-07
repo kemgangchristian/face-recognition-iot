@@ -90,4 +90,27 @@ class EnrollmentService:
             })
 
         return results
+
+    
+    def delete_identity(self, identity_id: int) -> bool:
+        """
+        Supprime une identité et tous ses embeddings associés (droit à
+        l'effacement RGPD). Les embeddings sont supprimés automatiquement
+        via ON DELETE CASCADE défini dans le schéma. Les logs d'accès
+        associés sont conservés mais anonymisés (identity_id mis à NULL
+        via ON DELETE SET NULL) pour préserver l'audit de sécurité.
+
+        Args:
+            identity_id: id de l'identité à supprimer.
+
+        Returns:
+            bool: True si une identité a bien été supprimée, False si
+                  aucune identité ne correspondait à cet id.
+        """
+        conn = self.db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM identities WHERE id = ?", (identity_id,))
+        conn.commit()
+
+        return cursor.rowcount > 0
     

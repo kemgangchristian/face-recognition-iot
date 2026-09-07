@@ -4,3 +4,7 @@
 
 # Epic 1 : capture + détection
 opencv-python==5.0.0
+
+# Epic 3 : algorithme de chiffrement
+cryptography==50.0.1
+

@@ -56,6 +56,7 @@ Si le projet est finalement **mono-site sans backend central**, l'Epic 7 (Backen
 ---
 
 ## EPIC 3 — Enrôlement & Base de Visages (Edge)
+**Statut : Terminé**
 
 **Objectif** : permettre l'ajout et la gestion des identités connues localement.
 

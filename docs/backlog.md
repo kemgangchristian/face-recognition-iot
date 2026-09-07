@@ -71,6 +71,7 @@ Si le projet est finalement **mono-site sans backend central**, l'Epic 7 (Backen
 ---
 
 ## EPIC 4 — Matching & Reconnaissance (Edge)
+**Statut : Fonctionnel (Stories 4.1, 4.3, 4.4 terminées) — Story 4.2 (FAISS) et 4.5 (rapport FAR/FRR) reportées, non bloquantes pour le MVP**
 
 **Objectif** : comparer un visage capturé à la base connue et rendre une décision.
 

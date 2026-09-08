@@ -127,6 +127,7 @@ Si le projet est finalement **mono-site sans backend central**, l'Epic 7 (Backen
 ---
 
 ## EPIC 8 — CI/CD avec Jenkins
+**Statut : Story 8.1 terminée (tests automatisés en CI). Stories 8.2-8.6 (build Docker ARM64, déploiement Ansible, gestion secrets) reportées — non bloquantes pour poursuivre le développement fonctionnel**
 
 **Objectif** : automatiser build, tests et déploiement pour l'edge et le backend.
 

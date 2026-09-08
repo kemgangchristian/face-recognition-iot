@@ -1,0 +1,5 @@
+# This file lists the packages required for development and testing of the project.
+# It is used to create a virtual environment with all the necessary dependencies.
+# To install the dependencies, run:
+# pip install -r requirements-dev.txt
+pytest==9.1.1

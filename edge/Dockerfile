@@ -38,7 +38,16 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 COPY src/ ./src/
-COPY models/ ./models/
+
+# Les modèles ML ne sont pas versionnés dans Git (poids lourds) — on les
+# télécharge directement pendant le build, pour que l'image soit auto-suffisante
+# peu importe l'environnement qui la construit (Jenkins n'a pas accès aux
+# fichiers locaux du Pi où ils avaient été téléchargés manuellement).
+RUN mkdir -p models \
+    && curl -L -o models/face_detection_yunet.onnx \
+        https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx \
+    && curl -L -o models/face_recognition_sface.onnx \
+        https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx
 
 EXPOSE 8000
 

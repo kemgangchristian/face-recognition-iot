@@ -30,7 +30,7 @@ pipeline {
         }
 
         stage('Build Edge Docker Image (ARM64)') {
-            agent any
+            agent { label 'built-in' }
             steps {
                 sh '''
                     docker buildx build \

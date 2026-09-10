@@ -28,6 +28,20 @@ pipeline {
                 }
             }
         }
+
+        stage('Build Edge Docker Image (ARM64)') {
+            agent any
+            steps {
+                sh '''
+                    docker buildx build \
+                        --platform linux/arm64 \
+                        -t face-recognition-edge:${BUILD_NUMBER} \
+                        -t face-recognition-edge:latest \
+                        -f edge/Dockerfile edge/ \
+                        --load
+                '''
+            }
+        }
     }
 
     post {
@@ -35,7 +49,7 @@ pipeline {
             echo 'Pipeline terminé.'
         }
         success {
-            echo 'Tous les tests sont passés.'
+            echo 'Tous les tests sont passés, image Docker ARM64 construite.'
         }
         failure {
             echo 'Échec du pipeline — voir les logs ci-dessus.'

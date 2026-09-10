@@ -106,7 +106,7 @@ Si le projet est finalement **mono-site sans backend central**, l'Epic 7 (Backen
 | # | User Story | Critères d'acceptation |
 |---|---|---|
 | 6.1 | En tant que dev, je veux mesurer la consommation CPU/RAM/température en fonctionnement continu afin d'anticiper le throttling thermique | Rapport de charge sur 24h de fonctionnement continu |
-| 6.2 | En tant que dev, je veux tester l'ajout d'un accélérateur (Coral Edge TPU ou Hailo-8) afin d'évaluer le gain de performance | Comparatif latence avec/sans accélérateur, décision go/no-go documentée |
+| 6.2 | En tant que dev, je veux tester l'ajout d'un accélérateur (Coral Edge TPU ou Hailo-8) afin d'évaluer le gain de performance | ~~Comparatif latence avec/sans accélérateur~~ **NON NÉCESSAIRE** : CPU pur suffit, latence déjà à ~212ms (voir architecture.md) |
 | 6.3 | En tant que système, je veux redémarrer automatiquement les services en cas de crash afin de garantir la disponibilité | Supervisor/systemd configuré, testé avec kill forcé du processus |
 | 6.4 | En tant que dev, je veux gérer le fonctionnement hors ligne complet afin que le Pi continue de fonctionner sans connexion réseau | Test en coupant le réseau : enrôlement/vérification toujours fonctionnels |
 
@@ -181,4 +181,4 @@ Si le projet est finalement **mono-site sans backend central**, l'Epic 7 (Backen
 9. **Sprint 15** : Epic 9 (sécurité/RGPD) — en réalité à traiter en continu dès le Sprint 1, pas en fin de projet
 10. **Sprint 16** : Epic 10 (packaging/prod)
 
-> Note méthodo : l'Epic 9 (RGPD/sécurité) est placé en fin de liste ici pour la lisibilité du document, mais dans la pratique les stories 9.1, 9.2 et 9.4 doivent être traitées **dès les premiers sprints**, en parallèle du développement — pas en fin de projet.
+> Note méthode : l'Epic 9 (RGPD/sécurité) est placé en fin de liste ici pour la lisibilité du document, mais dans la pratique les stories 9.1, 9.2 et 9.4 doivent être traitées **dès les premiers sprints**, en parallèle du développement — pas en fin de projet.

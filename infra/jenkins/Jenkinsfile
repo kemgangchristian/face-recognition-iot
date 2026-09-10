@@ -8,6 +8,9 @@ pipeline {
 
     environment {
         REGISTRY_IMAGE = 'ghcr.io/kemgangchristian/face-recognition-edge'
+        PI_USER = 'admin'
+        PI_ADDRESS = 'face-recognition-pi.tailcf5433.ts.net'
+        PI_HOST = "${PI_USER}@${PI_ADDRESS}"
     }
 
     stages {
@@ -16,7 +19,7 @@ pipeline {
                 dir('edge') {
                     sh '''
                         apt-get update && apt-get install -y --no-install-recommends \
-                            libgl1 libglib2.0-0 curl gnupg lsb-release
+                            libgl1 libglib2.0-0 curl gnupg lsb-release openssh-client
                         curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker.gpg
                         echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/debian bookworm stable" > /etc/apt/sources.list.d/docker.list
                         apt-get update && apt-get install -y docker-ce-cli docker-buildx-plugin
@@ -64,6 +67,25 @@ pipeline {
                 }
             }
         }
+
+        stage('Deploy to Raspberry Pi') {
+            steps {
+                sh '''
+                    ssh -i /var/jenkins_home/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new ${PI_HOST} '
+                        docker pull ${REGISTRY_IMAGE}:latest &&
+                        docker stop face-recognition-api || true &&
+                        docker rm face-recognition-api || true &&
+                        docker run -d \
+                            --name face-recognition-api \
+                            --restart unless-stopped \
+                            --privileged \
+                            -p 8000:8000 \
+                            -v /run/udev:/run/udev:ro \
+                            ${REGISTRY_IMAGE}:latest
+                    '
+                '''
+            }
+        }
     }
 
     post {
@@ -71,7 +93,7 @@ pipeline {
             echo 'Pipeline terminé.'
         }
         success {
-            echo 'Tous les tests sont passés, image Docker ARM64 construite et poussée.'
+            echo 'Déploiement complet : tests passés, image construite, poussée, et déployée sur le Pi.'
         }
         failure {
             echo 'Échec du pipeline — voir les logs ci-dessus.'

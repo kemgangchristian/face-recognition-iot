@@ -6,6 +6,10 @@ pipeline {
         }
     }
 
+    environment {
+        REGISTRY_IMAGE = 'ghcr.io/kemgangchristian/face-recognition-edge'
+    }
+
     stages {
         stage('Setup') {
             steps {
@@ -37,11 +41,27 @@ pipeline {
                 sh '''
                     docker buildx build \
                         --platform linux/arm64 \
-                        -t face-recognition-edge:${BUILD_NUMBER} \
-                        -t face-recognition-edge:latest \
+                        -t ${REGISTRY_IMAGE}:${BUILD_NUMBER} \
+                        -t ${REGISTRY_IMAGE}:latest \
                         -f edge/Dockerfile edge/ \
                         --load
                 '''
+            }
+        }
+
+        stage('Push to Registry') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'ghcr-credentials',
+                    usernameVariable: 'GHCR_USER',
+                    passwordVariable: 'GHCR_TOKEN'
+                )]) {
+                    sh '''
+                        echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+                        docker push ${REGISTRY_IMAGE}:${BUILD_NUMBER}
+                        docker push ${REGISTRY_IMAGE}:latest
+                    '''
+                }
             }
         }
     }
@@ -51,7 +71,7 @@ pipeline {
             echo 'Pipeline terminé.'
         }
         success {
-            echo 'Tous les tests sont passés, image Docker ARM64 construite.'
+            echo 'Tous les tests sont passés, image Docker ARM64 construite et poussée.'
         }
         failure {
             echo 'Échec du pipeline — voir les logs ci-dessus.'

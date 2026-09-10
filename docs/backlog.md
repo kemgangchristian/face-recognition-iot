@@ -114,6 +114,9 @@ Si le projet est finalement **mono-site sans backend central**, l'Epic 7 (Backen
 ---
 
 ## EPIC 7 — Backend Central & Supervision (PostgreSQL)
+**Statut : En attente — reporté volontairement (principe YAGNI)**
+
+**Condition de déclenchement** : dès qu'un deuxième Raspberry Pi est disponible pour validation réelle. Le schéma actuel (`site_id` dans `identities`, topic MQTT `face-recognition/{site_id}/events`) est déjà conçu pour cette extension future — aucune migration de données nécessaire au moment de l'implémenter.
 
 **Objectif** : centraliser la supervision multi-sites (à activer seulement si architecture multi-Pi confirmée).
 

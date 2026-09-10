@@ -24,8 +24,13 @@ class EventPublisher:
         self.topic = f"face-recognition/{site_id}/events"
 
         self._client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-        self._client.connect(broker_host, broker_port)
-        self._client.loop_start()  # gère la connexion en arrière-plan (thread dédié)
+
+        try:
+            self._client.connect(broker_host, broker_port)
+            self._client.loop_start()
+        except (ConnectionRefusedError, OSError) as e:
+            print(f"AVERTISSEMENT : broker MQTT inaccessible ({e}). "
+                  f"Les événements ne seront pas publiés tant que la connexion n'est pas rétablie.") 
 
     def publish_verification_event(self, matched: bool, full_name: str = None, confidence: float = 0.0) -> None:
         """

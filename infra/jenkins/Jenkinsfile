@@ -33,6 +33,7 @@ pipeline {
             agent { label 'built-in' }
             steps {
                 sh '''
+                    export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
                     docker buildx build \
                         --platform linux/arm64 \
                         -t face-recognition-edge:${BUILD_NUMBER} \

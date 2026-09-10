@@ -1,4 +1,4 @@
-# Python 
+# Python
 __pycache__/
 *.pyc
 *.pyo
@@ -26,4 +26,4 @@ edge/models/*.onnx
 *.log
 
 # Docker
-*.taredge/raspberrypi-archive-keyring.pgp
+*.tar

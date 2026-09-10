@@ -26,4 +26,4 @@ edge/models/*.onnx
 *.log
 
 # Docker
-*.tar
+*.taredge/raspberrypi-archive-keyring.pgp

@@ -2,7 +2,7 @@ pipeline {
     agent {
         docker {
             image 'python:3.11-slim-bookworm'
-            args '-u root'
+            args '-u root -v /var/run/docker.sock:/var/run/docker.sock -v /usr/bin/docker:/usr/bin/docker -v /var/jenkins_home/.docker/cli-plugins:/root/.docker/cli-plugins'
         }
     }
 
@@ -30,16 +30,8 @@ pipeline {
         }
 
         stage('Build Edge Docker Image (ARM64)') {
-            agent { label 'built-in' }
             steps {
                 sh '''
-                    export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
-                    echo "=== DEBUG ==="
-                    whoami
-                    hostname
-                    ls -la /usr/bin/docker || echo "docker binary absent ici"
-                    cat /proc/1/cgroup | head -5
-                    echo "=== FIN DEBUG ==="
                     docker buildx build \
                         --platform linux/arm64 \
                         -t face-recognition-edge:${BUILD_NUMBER} \

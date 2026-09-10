@@ -11,8 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import threading
 import numpy as np
 import cv2
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-
+from fastapi import FastAPI, Security, UploadFile, File, Form, HTTPException
 from detection.face_detector import FaceDetector
 from detection.quality_filter import QualityFilter
 from recognition.face_embedder import FaceEmbedder
@@ -21,6 +20,7 @@ from storage.encryption import EncryptionManager
 from storage.enrollment import EnrollmentService
 from matching.matcher import FaceMatcher
 from mqtt.publisher import EventPublisher
+from api.auth import verify_api_key
 
 
 app = FastAPI(title="Face Recognition IoT - API Edge", version="0.1.0")
@@ -75,7 +75,7 @@ def health_check():
 
 
 @app.post("/enroll")
-def enroll(full_name: str = Form(...), image: UploadFile = File(...)):
+def enroll(full_name: str = Form(...), image: UploadFile = File(...), _: None = Security(verify_api_key)):
     """
     Enrôle une nouvelle identité à partir d'une image uploadée.
 
@@ -100,7 +100,7 @@ def enroll(full_name: str = Form(...), image: UploadFile = File(...)):
 
 
 @app.post("/verify")
-def verify(image: UploadFile = File(...)):
+def verify(image: UploadFile = File(...), _: None = Security(verify_api_key)):
     """
     Identifie la personne présente sur une image uploadée.
 
@@ -131,7 +131,7 @@ def verify(image: UploadFile = File(...)):
 
 
 @app.get("/logs")
-def get_logs(limit: int = 100):
+def get_logs(limit: int = 100, _: None = Security(verify_api_key)):
     """
     Récupère l'historique des tentatives de reconnaissance, du plus récent
     au plus ancien.

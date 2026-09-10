@@ -70,20 +70,26 @@ pipeline {
 
         stage('Deploy to Raspberry Pi') {
             steps {
-                sh """
-                    ssh -i /var/jenkins_home/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new ${PI_HOST} '
-                        docker pull ${REGISTRY_IMAGE}:latest &&
-                        docker stop face-recognition-api || true &&
-                        docker rm face-recognition-api || true &&
-                        docker run -d \
-                            --name face-recognition-api \
-                            --restart unless-stopped \
-                            --privileged \
-                            -p 8000:8000 \
-                            -v /run/udev:/run/udev:ro \
-                            ${REGISTRY_IMAGE}:latest
-                    '
-                """
+                withCredentials([string(
+                    credentialsId: 'face-recognition-api-key',
+                    variable: 'API_KEY'
+                )]) {
+                    sh """
+                        ssh -i /var/jenkins_home/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new ${PI_HOST} '
+                            docker pull ${REGISTRY_IMAGE}:latest &&
+                            docker stop face-recognition-api || true &&
+                            docker rm face-recognition-api || true &&
+                            docker run -d \
+                                --name face-recognition-api \
+                                --restart unless-stopped \
+                                --privileged \
+                                -p 8000:8000 \
+                                -e FACE_RECOGNITION_API_KEY=${API_KEY} \
+                                -v /run/udev:/run/udev:ro \
+                                ${REGISTRY_IMAGE}:latest
+                        '
+                    """
+                }
             }
         }
     }

@@ -70,7 +70,7 @@ pipeline {
 
         stage('Deploy to Raspberry Pi') {
             steps {
-                sh '''
+                sh """
                     ssh -i /var/jenkins_home/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new ${PI_HOST} '
                         docker pull ${REGISTRY_IMAGE}:latest &&
                         docker stop face-recognition-api || true &&
@@ -83,7 +83,7 @@ pipeline {
                             -v /run/udev:/run/udev:ro \
                             ${REGISTRY_IMAGE}:latest
                     '
-                '''
+                """
             }
         }
     }

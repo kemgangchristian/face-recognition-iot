@@ -100,6 +100,7 @@ Si le projet est finalement **mono-site sans backend central**, l'Epic 7 (Backen
 ---
 
 ## EPIC 6 — Optimisation Edge & Robustesse
+**Statut : Story 6.1 (test court validé, 24h optionnel) | Story 6.2 (non nécessaire, documenté) | Story 6.3 (via Docker --restart unless-stopped) | Story 6.4 à faire**
 
 **Objectif** : garantir que le système tourne de façon stable et performante sur le matériel cible réel.
 

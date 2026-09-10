@@ -2,7 +2,7 @@ pipeline {
     agent {
         docker {
             image 'python:3.11-slim-bookworm'
-            args '-u root -v /var/run/docker.sock:/var/run/docker.sock -v /usr/bin/docker:/usr/bin/docker -v /var/jenkins_home/.docker/cli-plugins:/root/.docker/cli-plugins'
+            args '-u root -v /var/run/docker.sock:/var/run/docker.sock'
         }
     }
 

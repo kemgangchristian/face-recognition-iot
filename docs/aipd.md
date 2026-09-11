@@ -135,7 +135,7 @@ Pour chaque risque : **Sources**, **Impact potentiel**, **Vraisemblance** (Négl
 - **Impact potentiel** : perte d'accès légitime pour les personnes enrôlées (impact opérationnel, pas de confidentialité)
 - **Vraisemblance** : Limitée à Importante (matériel edge, cartes SD reconnues comme peu fiables sur la durée)
 - **Gravité** : Limitée (récupérable par réenrôlement, pas de préjudice irréversible pour la personne)
-- **Mesures existantes** : `--restart unless-stopped` (Story 6.3), image reconstructible via CI/CD
+- **Mesures existantes** : `--restart unless-stopped` (Story 6.3), image reconstructible via CI/CD, **volume Docker persistant pour la base de données** (empêche la perte de données à chaque redéploiement)
 - **Mesures complémentaires recommandées** :
   - Sauvegarde régulière et chiffrée de la base de données (actuellement absente)
   - Sauvegarde séparée et sécurisée de la clé de chiffrement (perte de la clé = perte irrémédiable des données malgré leur présence physique)

@@ -152,7 +152,7 @@ Pour chaque risque : **Sources**, **Impact potentiel**, **Vraisemblance** (Négl
 | 2 | Mettre en place une alternative non-biométrique au contrôle d'accès | **Bloquant** | Nouvelle story à créer |
 | 3 | Rédiger la notice d'information RGPD pour les personnes enrôlées | **Bloquant** | Nouvelle story à créer |
 | 4 | Recueillir un consentement explicite, libre, et documenté | **Bloquant** | Nouvelle story à créer |
-| 5 | Implémenter la purge automatique selon durée de conservation | Élevée | Story 9.1 |
+| 5 | Implémenter la purge automatique selon durée de conservation | ~~Élevée~~ **Traité** | Story 9.1 |
 | 6 | Ajouter l'authentification à l'API (actuellement absente) | ~~Élevée~~ **Traité** | Nouvelle story à créer |
 | 7 | Chiffrement disque complet du Raspberry Pi (LUKS) | Élevée | Nouvelle story à créer |
 | 8 | Sauvegarde chiffrée régulière de la base + clé | Moyenne | Nouvelle story à créer |

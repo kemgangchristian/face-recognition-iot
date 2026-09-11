@@ -86,6 +86,7 @@ pipeline {
                                 -p 8000:8000 \
                                 -e FACE_RECOGNITION_API_KEY=${API_KEY} \
                                 -v /run/udev:/run/udev:ro \
+                                -v face-recognition-data:/app/storage_data \
                                 ${REGISTRY_IMAGE}:latest
                         '
                     """

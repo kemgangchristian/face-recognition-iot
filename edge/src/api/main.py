@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import threading
 import numpy as np
 import cv2
+import asyncio
 from fastapi import FastAPI, Security, UploadFile, File, Form, HTTPException
 from detection.face_detector import FaceDetector
 from detection.quality_filter import QualityFilter
@@ -39,6 +40,25 @@ enrollment = EnrollmentService(db, encryption)
 # Protège les accès concurrents à la connexion SQLite partagée entre threads
 # (FastAPI exécute chaque requête dans un thread différent du pool).
 db_lock = threading.Lock()
+RETENTION_DAYS = int(os.environ.get("ACCESS_LOGS_RETENTION_DAYS", "90"))
+
+async def periodic_purge():
+    """
+    Tâche de fond : purge automatiquement les logs d'accès expirés,
+    une fois par jour. Story 9.1 — conformité RGPD (minimisation des données).
+    """
+    while True:
+        with db_lock:
+            deleted = enrollment.purge_old_logs(RETENTION_DAYS)
+        if deleted > 0:
+            print(f"Purge automatique : {deleted} log(s) supprimé(s) (> {RETENTION_DAYS} jours).")
+        await asyncio.sleep(24 * 60 * 60)  # 24 heures
+
+
+@app.on_event("startup")
+async def start_background_tasks():
+    asyncio.create_task(periodic_purge())
+
 event_publisher = EventPublisher()
 matcher = FaceMatcher(enrollment, embedder, threshold=0.5)
 
@@ -144,3 +164,15 @@ def get_logs(limit: int = 100, _: None = Security(verify_api_key)):
 
     return {"count": len(logs), "logs": logs}
 
+
+
+@app.post("/admin/purge-logs")
+def trigger_purge_now(_: None = Security(verify_api_key)):
+    """
+    Déclenche une purge immédiate des logs expirés (utile pour tester
+    sans attendre le cycle automatique de 24h).
+    """
+    with db_lock:
+        deleted = enrollment.purge_old_logs(RETENTION_DAYS)
+
+    return {"deleted_count": deleted, "retention_days": RETENTION_DAYS}

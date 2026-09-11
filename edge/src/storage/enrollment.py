@@ -172,3 +172,25 @@ class EnrollmentService:
             }
             for row in cursor.fetchall()
         ]
+
+
+    def purge_old_logs(self, retention_days: int = 90) -> int:
+        """
+        Supprime les logs d'accès plus anciens que la durée de rétention.
+        Story 9.1 — Epic 9 (conformité RGPD, minimisation des données).
+
+        Args:
+            retention_days: nombre de jours au-delà desquels un log est purgé.
+
+        Returns:
+            int: nombre de lignes supprimées.
+        """
+        conn = self.db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "DELETE FROM access_logs WHERE timestamp < datetime('now', ?)",
+            (f"-{retention_days} days",)
+        )
+        conn.commit()
+        return cursor.rowcount
+    

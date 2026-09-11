@@ -72,9 +72,9 @@ La CNIL est explicitement restrictive sur la biométrie en contexte professionne
 
 ### 2.2 Minimisation des données
 
-- ✅ Seul l'embedding est conservé, jamais l'image brute du visage (Story 3, principe déjà appliqué)
-- ✅ Pas de données superflues collectées (âge, genre, émotions — non extraites par notre pipeline)
-- ⏳ À faire : purge automatique selon durée de conservation définie (Story 9.1)
+- Seul l'embedding est conservé, jamais l'image brute du visage (Story 3, principe déjà appliqué)
+- Pas de données superflues collectées (âge, genre, émotions — non extraites par notre pipeline)
+- À faire : purge automatique selon durée de conservation définie (Story 9.1)
 
 ### 2.3 Consentement et alternative non-biométrique
 
@@ -86,11 +86,11 @@ La CNIL est explicitement restrictive sur la biométrie en contexte professionne
 
 | Droit RGPD | Statut technique actuel |
 |---|---|
-| Droit d'accès | ⏳ Non implémenté (endpoint permettant à une personne de consulter ses propres logs) |
-| Droit de rectification | ⏳ Non implémenté (modification du nom associé à une identité) |
-| Droit à l'effacement | ✅ Implémenté (Story 3.3, suppression en cascade) |
-| Droit à la portabilité | ⏳ Non applicable/non implémenté (peu pertinent pour un embedding biométrique) |
-| Droit d'opposition | ⏳ Dépend du mécanisme de consentement à mettre en place (2.3) |
+| Droit d'accès | Non implémenté (endpoint permettant à une personne de consulter ses propres logs) |
+| Droit de rectification | Non implémenté (modification du nom associé à une identité) |
+| Droit à l'effacement | Implémenté (Story 3.3, suppression en cascade) |
+| Droit à la portabilité | Non applicable/non implémenté (peu pertinent pour un embedding biométrique) |
+| Droit d'opposition | Dépend du mécanisme de consentement à mettre en place (2.3) |
 
 ### 2.5 Information des personnes concernées
 
@@ -153,7 +153,7 @@ Pour chaque risque : **Sources**, **Impact potentiel**, **Vraisemblance** (Négl
 | 3 | Rédiger la notice d'information RGPD pour les personnes enrôlées | **Bloquant** | Nouvelle story à créer |
 | 4 | Recueillir un consentement explicite, libre, et documenté | **Bloquant** | Nouvelle story à créer |
 | 5 | Implémenter la purge automatique selon durée de conservation | Élevée | Story 9.1 |
-| 6 | Ajouter l'authentification à l'API (actuellement absente) | Élevée | Nouvelle story à créer |
+| 6 | Ajouter l'authentification à l'API (actuellement absente) | ~~Élevée~~ **Traité** | Nouvelle story à créer |
 | 7 | Chiffrement disque complet du Raspberry Pi (LUKS) | Élevée | Nouvelle story à créer |
 | 8 | Sauvegarde chiffrée régulière de la base + clé | Moyenne | Nouvelle story à créer |
 | 9 | Droit d'accès/rectification pour les personnes concernées | Moyenne | Nouvelle story à créer |
@@ -172,4 +172,4 @@ Pour chaque risque : **Sources**, **Impact potentiel**, **Vraisemblance** (Négl
 **Historique des versions**
 | Date | Version | Modification |
 |---|---|---|
-| Sprint 15 | 1.0 | Rédaction initiale suite au changement de contexte personnel → commercial |
+| Sprint 15 | 1.0 | Rédaction initiale suite au changement de contexte personnel -> commercial |

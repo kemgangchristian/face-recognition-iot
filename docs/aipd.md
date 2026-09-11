@@ -154,7 +154,7 @@ Pour chaque risque : **Sources**, **Impact potentiel**, **Vraisemblance** (Négl
 | 4 | Recueillir un consentement explicite, libre, et documenté | **Bloquant** | Nouvelle story à créer |
 | 5 | Implémenter la purge automatique selon durée de conservation | ~~Élevée~~ **Traité** | Story 9.1 |
 | 6 | Ajouter l'authentification à l'API (actuellement absente) | ~~Élevée~~ **Traité** | Nouvelle story à créer |
-| 7 | Chiffrement disque complet du Raspberry Pi (LUKS) | Élevée | Nouvelle story à créer |
+| 7 | Chiffrement disque complet — **Approche retenue : NBDE (Tang/Clevis)**, serveur Tang préparé sur infrastructure de confiance | Moyenne | Conversion LUKS du Pi reportée à une session dédiée (opération technique délicate) |
 | 8 | Sauvegarde chiffrée régulière de la base + clé | Moyenne | Nouvelle story à créer |
 | 9 | Droit d'accès/rectification pour les personnes concernées | Moyenne | Nouvelle story à créer |
 | 10 | Validation finale de cette AIPD par un DPO/juriste | **Bloquant** | — |

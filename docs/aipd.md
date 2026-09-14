@@ -155,7 +155,7 @@ Pour chaque risque : **Sources**, **Impact potentiel**, **Vraisemblance** (Négl
 | 5 | Implémenter la purge automatique selon durée de conservation | ~~Élevée~~ **Traité** | Story 9.1 |
 | 6 | Ajouter l'authentification à l'API (actuellement absente) | ~~Élevée~~ **Traité** | Nouvelle story à créer |
 | 7 | Chiffrement disque complet — **Implémenté et validé** : NBDE (Tang/Clevis), déverrouillage automatique via réseau local, mot de passe de récupération conservé séparément | Moyenne | Voir infra/disk-encryption/ pour la solution complète. Limite documentée : protège contre le vol du support seul, pas contre un vol combiné device+accès réseau Tang |
-| 8 | Sauvegarde chiffrée régulière de la base + clé — **Implémenté et validé** (test de restauration réussi) | Moyenne | Automatisation via cron/launchd à planifier ; sauvegarde manuelle fonctionnelle |
+| 8 | Sauvegarde chiffrée régulière de la base + clé — **Implémenté et validé** (test de restauration réussi, automatisée quotidiennement via launchd) | Moyenne | Voir architecture.md pour la limitation cosmétique connue (avertissement SSH non bloquant) |
 | 9 | Droit d'accès/rectification pour les personnes concernées | Moyenne | Nouvelle story à créer |
 | 10 | Validation finale de cette AIPD par un DPO/juriste | **Bloquant** | — |
 

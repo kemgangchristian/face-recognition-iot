@@ -154,7 +154,7 @@ Pour chaque risque : **Sources**, **Impact potentiel**, **Vraisemblance** (Négl
 | 4 | Recueillir un consentement explicite, libre, et documenté | **Bloquant** | Nouvelle story à créer |
 | 5 | Implémenter la purge automatique selon durée de conservation | ~~Élevée~~ **Traité** | Story 9.1 |
 | 6 | Ajouter l'authentification à l'API (actuellement absente) | ~~Élevée~~ **Traité** | Nouvelle story à créer |
-| 7 | Chiffrement disque complet — **Approche retenue : NBDE (Tang/Clevis)**, serveur Tang préparé sur infrastructure de confiance | Moyenne | Conversion LUKS du Pi reportée à une session dédiée (opération technique délicate) |
+| 7 | Chiffrement disque complet — **Implémenté et validé** : NBDE (Tang/Clevis), déverrouillage automatique via réseau local, mot de passe de récupération conservé séparément | Moyenne | Voir infra/disk-encryption/ pour la solution complète. Limite documentée : protège contre le vol du support seul, pas contre un vol combiné device+accès réseau Tang |
 | 8 | Sauvegarde chiffrée régulière de la base + clé | Moyenne | Nouvelle story à créer |
 | 9 | Droit d'accès/rectification pour les personnes concernées | Moyenne | Nouvelle story à créer |
 | 10 | Validation finale de cette AIPD par un DPO/juriste | **Bloquant** | — |

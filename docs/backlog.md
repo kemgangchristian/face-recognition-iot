@@ -147,6 +147,7 @@ Si le projet est finalement **mono-site sans backend central**, l'Epic 7 (Backen
 ---
 
 ## EPIC 9 — Sécurité & Conformité RGPD
+**Statut : Fonctionnel (Stories 9.1 et authentification API traitées ; actions 1-4 organisationnelles, 8-9 techniques restantes ; 10 formalisation finale par DPO)**
 
 **Objectif** : garantir la conformité légale et la sécurité des données biométriques sur l'ensemble du cycle de vie.
 

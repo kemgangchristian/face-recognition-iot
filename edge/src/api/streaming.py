@@ -82,10 +82,22 @@ def register_streaming_routes(app, camera, detector, quality_filter, embedder, m
             yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n")
             time.sleep(FRAME_DELAY)
 
+    def generate_raw():
+        while True:
+            frame = camera.read_frame()
+            _, jpeg = cv2.imencode(".jpg", frame)
+            yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n")
+            time.sleep(0.1)
+
+    @router.get("/stream/raw")
+    def stream_raw(api_key: str = Query(...)):
+        _verify_stream_api_key(api_key)
+        return StreamingResponse(generate_raw(), media_type="multipart/x-mixed-replace; boundary=frame")
+
+    
     @router.get("/stream/detected")
     def stream_detected(api_key: str = Query(...)):
         _verify_stream_api_key(api_key)
         return StreamingResponse(generate_detected(), media_type="multipart/x-mixed-replace; boundary=frame")
 
     app.include_router(router)
-    

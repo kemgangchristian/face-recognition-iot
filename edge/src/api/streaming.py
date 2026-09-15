@@ -18,6 +18,16 @@ FRAME_DELAY = 0.1  # ~10 fps — l'identification est plus coûteuse que la
                     # simple détection, on réduit la cadence pour le CPU du Pi
 LOG_COOLDOWN_SECONDS = 30
 
+# En-têtes communs aux deux flux.
+# ⚠️ On NE met PAS "Access-Control-Allow-Origin" ici : le CORSMiddleware
+# global de main.py s'en charge. Sinon on aurait un doublon d'en-tête
+# (le middleware + le header manuel) que certains navigateurs rejettent.
+_STREAM_HEADERS = {
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
+
 # Mémorise le dernier moment où chaque identité a été journalisée, pour
 # appliquer le cooldown (dict simple, en mémoire, pas besoin de DB pour ça).
 _last_logged: dict = {}
@@ -26,7 +36,10 @@ _last_logged: dict = {}
 def _verify_stream_api_key(api_key: str) -> None:
     valid_key = os.environ.get("FACE_RECOGNITION_API_KEY")
     if not valid_key or not api_key or not secrets.compare_digest(api_key, valid_key):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Clé API invalide ou manquante.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Clé API invalide ou manquante.",
+        )
 
 
 def _should_log(identity_key) -> bool:
@@ -40,7 +53,16 @@ def _should_log(identity_key) -> bool:
     return False
 
 
-def register_streaming_routes(app, camera, detector, quality_filter, embedder, matcher, enrollment, db_lock):
+def register_streaming_routes(
+    app,
+    camera,
+    detector,
+    quality_filter,
+    embedder,
+    matcher,
+    enrollment,
+    db_lock,
+):
     def generate_detected():
         while True:
             frame = camera.read_frame()
@@ -76,28 +98,52 @@ def register_streaming_routes(app, camera, detector, quality_filter, embedder, m
                     label = "Qualite insuffisante"
 
                 cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-                cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+                cv2.putText(
+                    frame,
+                    label,
+                    (x, y - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    color,
+                    2,
+                )
 
             _, jpeg = cv2.imencode(".jpg", frame)
-            yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n")
+            yield (
+                b"--frame\r\nContent-Type: image/jpeg\r\n\r\n"
+                + jpeg.tobytes()
+                + b"\r\n"
+            )
             time.sleep(FRAME_DELAY)
 
     def generate_raw():
         while True:
             frame = camera.read_frame()
             _, jpeg = cv2.imencode(".jpg", frame)
-            yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n")
+            yield (
+                b"--frame\r\nContent-Type: image/jpeg\r\n\r\n"
+                + jpeg.tobytes()
+                + b"\r\n"
+            )
             time.sleep(0.1)
 
     @router.get("/stream/raw")
     def stream_raw(api_key: str = Query(...)):
         _verify_stream_api_key(api_key)
-        return StreamingResponse(generate_raw(), media_type="multipart/x-mixed-replace; boundary=frame")
+        return StreamingResponse(
+            generate_raw(),
+            media_type="multipart/x-mixed-replace; boundary=frame",
+            headers=_STREAM_HEADERS,
+        )
 
-    
     @router.get("/stream/detected")
     def stream_detected(api_key: str = Query(...)):
         _verify_stream_api_key(api_key)
-        return StreamingResponse(generate_detected(), media_type="multipart/x-mixed-replace; boundary=frame")
+        return StreamingResponse(
+            generate_detected(),
+            media_type="multipart/x-mixed-replace; boundary=frame",
+            headers=_STREAM_HEADERS,
+        )
 
     app.include_router(router)
+    

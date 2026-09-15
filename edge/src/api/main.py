@@ -29,11 +29,13 @@ from api.streaming import register_streaming_routes
 
 app = FastAPI(title="Face Recognition IoT - API Edge", version="0.1.0")
 
+# CORS : accepte localhost (dev local) et toute IP LAN 192.168.x.x sur :3000
+# (accès au dashboard depuis un autre appareil du réseau, ex. http://192.168.1.142:3000).
+# On utilise une regex plutôt que "*" car allow_credentials=True est incompatible
+# avec une liste d'origines littérale "*".
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-    ],
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+):3000",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -83,7 +85,9 @@ matcher = FaceMatcher(enrollment, embedder, threshold=0.5)
 # Doit être placé APRÈS la création de matcher : le module de streaming a
 # besoin de l'instance déjà construite pour faire l'identification en
 # direct dans le flux vidéo.
-register_streaming_routes(app, camera, detector, quality_filter, embedder, matcher, enrollment, db_lock)
+register_streaming_routes(
+    app, camera, detector, quality_filter, embedder, matcher, enrollment, db_lock
+)
 
 
 def decode_image(file_bytes: bytes) -> np.ndarray:
@@ -118,7 +122,11 @@ def health_check():
 
 
 @app.post("/enroll")
-def enroll(full_name: str = Form(...), image: UploadFile = File(...), _: None = Security(verify_api_key)):
+def enroll(
+    full_name: str = Form(...),
+    image: UploadFile = File(...),
+    _: None = Security(verify_api_key),
+):
     """
     Enrôle une nouvelle identité à partir d'une image uploadée.
 
@@ -128,12 +136,22 @@ def enroll(full_name: str = Form(...), image: UploadFile = File(...), _: None = 
     """
     frame = decode_image(image.file.read())
     face = detect_single_valid_face(frame)
-
     embedding = embedder.extract(frame, face)
 
-    with db_lock:
-        identity_id = enrollment.enroll_identity(full_name)
-        enrollment.add_embedding(identity_id, embedding)
+    identity_id = None
+    try:
+        with db_lock:
+            identity_id = enrollment.enroll_identity(full_name)
+            enrollment.add_embedding(identity_id, embedding)
+    except Exception:
+        # Rollback : on ne laisse pas une identité sans embedding en base.
+        if identity_id is not None:
+            with db_lock:
+                enrollment.delete_identity(identity_id)
+        raise HTTPException(
+            status_code=500,
+            detail="Échec de l'enrôlement, aucune donnée enregistrée.",
+        )
 
     return {
         "identity_id": identity_id,
@@ -143,7 +161,10 @@ def enroll(full_name: str = Form(...), image: UploadFile = File(...), _: None = 
 
 
 @app.post("/verify")
-def verify(image: UploadFile = File(...), _: None = Security(verify_api_key)):
+def verify(
+    image: UploadFile = File(...),
+    _: None = Security(verify_api_key),
+):
     """
     Identifie la personne présente sur une image uploadée.
 
@@ -152,7 +173,6 @@ def verify(image: UploadFile = File(...), _: None = Security(verify_api_key)):
     """
     frame = decode_image(image.file.read())
     face = detect_single_valid_face(frame)
-
     embedding = embedder.extract(frame, face)
 
     with db_lock:
@@ -212,7 +232,10 @@ def get_identities(_: None = Security(verify_api_key)):
 
 
 @app.delete("/identities/{identity_id}")
-def delete_identity_endpoint(identity_id: int, _: None = Security(verify_api_key)):
+def delete_identity_endpoint(
+    identity_id: int,
+    _: None = Security(verify_api_key),
+):
     """
     Supprime une identité et tous ses embeddings associés (droit à
     l'effacement RGPD, Story 3.3, maintenant exposé via l'API pour

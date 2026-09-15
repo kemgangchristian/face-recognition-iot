@@ -25,6 +25,17 @@ from api.auth import verify_api_key
 
 
 app = FastAPI(title="Face Recognition IoT - API Edge", version="0.1.0")
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Instanciation unique au démarrage — cohérent avec le pattern déjà utilisé
 # dans tous nos scripts (coûteux à charger, on le fait une seule fois).

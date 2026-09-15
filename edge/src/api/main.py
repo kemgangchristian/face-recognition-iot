@@ -176,3 +176,43 @@ def trigger_purge_now(_: None = Security(verify_api_key)):
         deleted = enrollment.purge_old_logs(RETENTION_DAYS)
 
     return {"deleted_count": deleted, "retention_days": RETENTION_DAYS}
+
+
+@app.get("/identities")
+def get_identities(_: None = Security(verify_api_key)):
+    """
+    Liste toutes les identités enrôlées (sans données biométriques).
+    Utilisé par le dashboard pour afficher la liste des personnes enrôlées.
+    """
+    with db_lock:
+        identities = enrollment.list_identities()
+
+    return {"count": len(identities), "identities": identities}
+
+
+@app.delete("/identities/{identity_id}")
+def delete_identity_endpoint(identity_id: int, _: None = Security(verify_api_key)):
+    """
+    Supprime une identité et tous ses embeddings associés (droit à
+    l'effacement RGPD, Story 3.3, maintenant exposé via l'API pour
+    permettre la suppression depuis le dashboard).
+    """
+    with db_lock:
+        deleted = enrollment.delete_identity(identity_id)
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Identité introuvable.")
+
+    return {"deleted": True, "identity_id": identity_id}
+
+
+@app.get("/stats")
+def get_stats(_: None = Security(verify_api_key)):
+    """
+    Statistiques agrégées pour les cartes du dashboard : nombre
+    d'identités enrôlées, accès du jour, taux de reconnaissance.
+    """
+    with db_lock:
+        stats = enrollment.get_stats()
+
+    return stats

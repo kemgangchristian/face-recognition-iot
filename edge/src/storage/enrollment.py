@@ -193,4 +193,66 @@ class EnrollmentService:
         )
         conn.commit()
         return cursor.rowcount
+
+    
+    def list_identities(self) -> list[dict]:
+        """
+        Liste toutes les identités enrôlées, SANS les vecteurs d'embedding
+        (données biométriques sensibles, jamais exposées via cette méthode).
+        Utilisé pour l'affichage dans le dashboard.
+
+        Returns:
+            list[dict]: chaque entrée contient id, full_name, enrolled_at,
+                        et le nombre d'embeddings (poses) enregistrés.
+        """
+        conn = self.db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT identities.id, identities.full_name, identities.enrolled_at,
+                   COUNT(embeddings.id) as pose_count
+            FROM identities
+            LEFT JOIN embeddings ON embeddings.identity_id = identities.id
+            GROUP BY identities.id
+            ORDER BY identities.enrolled_at DESC
+            """
+        )
+
+        return [
+            {
+                "id": row[0],
+                "full_name": row[1],
+                "enrolled_at": row[2],
+                "pose_count": row[3],
+            }
+            for row in cursor.fetchall()
+        ]
+
+    def get_stats(self) -> dict:
+        """
+        Statistiques agrégées pour le dashboard : nombre d'identités
+        enrôlées, nombre d'accès aujourd'hui, taux de reconnaissance.
+
+        Returns:
+            dict: enrolled_count, accesses_today, matched_today, unmatched_today.
+        """
+        conn = self.db.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT COUNT(*) FROM identities")
+        enrolled_count = cursor.fetchone()[0]
+
+        cursor.execute(
+            "SELECT COUNT(*), SUM(matched) FROM access_logs WHERE date(timestamp) = date('now')"
+        )
+        row = cursor.fetchone()
+        accesses_today = row[0] or 0
+        matched_today = row[1] or 0
+
+        return {
+            "enrolled_count": enrolled_count,
+            "accesses_today": accesses_today,
+            "matched_today": matched_today,
+            "unmatched_today": accesses_today - matched_today,
+        }
     

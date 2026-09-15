@@ -13,6 +13,7 @@ import numpy as np
 import cv2
 import asyncio
 from fastapi import FastAPI, Security, UploadFile, File, Form, HTTPException
+from capture.camera import Camera
 from detection.face_detector import FaceDetector
 from detection.quality_filter import QualityFilter
 from recognition.face_embedder import FaceEmbedder
@@ -22,6 +23,7 @@ from storage.enrollment import EnrollmentService
 from matching.matcher import FaceMatcher
 from mqtt.publisher import EventPublisher
 from api.auth import verify_api_key
+from api.streaming import register_streaming_routes
 
 
 app = FastAPI(title="Face Recognition IoT - API Edge", version="0.1.0")
@@ -39,6 +41,8 @@ app.add_middleware(
 
 # Instanciation unique au démarrage — cohérent avec le pattern déjà utilisé
 # dans tous nos scripts (coûteux à charger, on le fait une seule fois).
+camera = Camera()
+camera.start()
 detector = FaceDetector()
 quality_filter = QualityFilter()
 embedder = FaceEmbedder()
@@ -51,6 +55,7 @@ enrollment = EnrollmentService(db, encryption)
 # Protège les accès concurrents à la connexion SQLite partagée entre threads
 # (FastAPI exécute chaque requête dans un thread différent du pool).
 db_lock = threading.Lock()
+register_streaming_routes(app, camera, detector, quality_filter)
 RETENTION_DAYS = int(os.environ.get("ACCESS_LOGS_RETENTION_DAYS", "90"))
 
 async def periodic_purge():

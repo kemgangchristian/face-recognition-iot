@@ -19,7 +19,7 @@ FRAME_DELAY = 0.1  # ~10 fps — l'identification est plus coûteuse que la
 LOG_COOLDOWN_SECONDS = 30
 
 # En-têtes communs aux deux flux.
-# ⚠️ On NE met PAS "Access-Control-Allow-Origin" ici : le CORSMiddleware
+# On NE met PAS "Access-Control-Allow-Origin" ici : le CORSMiddleware
 # global de main.py s'en charge. Sinon on aurait un doublon d'en-tête
 # (le middleware + le header manuel) que certains navigateurs rejettent.
 _STREAM_HEADERS = {
@@ -146,4 +146,3 @@ def register_streaming_routes(
         )
 
     app.include_router(router)
-    

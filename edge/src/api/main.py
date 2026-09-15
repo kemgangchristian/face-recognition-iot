@@ -13,6 +13,7 @@ import numpy as np
 import cv2
 import asyncio
 from fastapi import FastAPI, Security, UploadFile, File, Form, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from capture.camera import Camera
 from detection.face_detector import FaceDetector
 from detection.quality_filter import QualityFilter
@@ -27,7 +28,6 @@ from api.streaming import register_streaming_routes
 
 
 app = FastAPI(title="Face Recognition IoT - API Edge", version="0.1.0")
-from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
@@ -55,8 +55,9 @@ enrollment = EnrollmentService(db, encryption)
 # Protège les accès concurrents à la connexion SQLite partagée entre threads
 # (FastAPI exécute chaque requête dans un thread différent du pool).
 db_lock = threading.Lock()
-register_streaming_routes(app, camera, detector, quality_filter)
+
 RETENTION_DAYS = int(os.environ.get("ACCESS_LOGS_RETENTION_DAYS", "90"))
+
 
 async def periodic_purge():
     """
@@ -75,8 +76,14 @@ async def periodic_purge():
 async def start_background_tasks():
     asyncio.create_task(periodic_purge())
 
+
 event_publisher = EventPublisher()
 matcher = FaceMatcher(enrollment, embedder, threshold=0.5)
+
+# Doit être placé APRÈS la création de matcher : le module de streaming a
+# besoin de l'instance déjà construite pour faire l'identification en
+# direct dans le flux vidéo.
+register_streaming_routes(app, camera, detector, quality_filter, embedder, matcher, enrollment, db_lock)
 
 
 def decode_image(file_bytes: bytes) -> np.ndarray:
@@ -165,7 +172,6 @@ def verify(image: UploadFile = File(...), _: None = Security(verify_api_key)):
     return result
 
 
-
 @app.get("/logs")
 def get_logs(limit: int = 100, _: None = Security(verify_api_key)):
     """
@@ -179,7 +185,6 @@ def get_logs(limit: int = 100, _: None = Security(verify_api_key)):
         logs = enrollment.get_access_logs(limit=limit)
 
     return {"count": len(logs), "logs": logs}
-
 
 
 @app.post("/admin/purge-logs")

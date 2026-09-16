@@ -7,17 +7,11 @@
 //     login/logout) passent par le proxy Next.js (/api/*), en même origine
 //     que le navigateur : pas de CORS, cookie de session transmis
 //     naturellement, aucune adresse ni secret exposé côté client.
-//   - Le flux vidéo (streaming MJPEG) contacte le Pi DIRECTEMENT : un flux
-//     continu à travers une route serverless Next.js est fragile (limites
-//     de durée de connexion, mise en tampon). Nécessite CORS côté FastAPI
-//     (déjà configuré) et credentials: "include" pour transmettre le
-//     cookie malgré l'origine différente.
+//   - Le flux vidéo (streaming MJPEG) passe aussi par le proxy (/api/stream/*)
+//     pour que le cookie de session posé au login soit transmis au Pi. Un
+//     appel direct au Pi échouerait (origine différente, cookie absent).
 
 const PROXY_BASE_URL = "/api";
-
-// Exposé au navigateur (préfixe NEXT_PUBLIC_ obligatoire) : seule variable
-// d'environnement nécessaire côté client, pour construire l'URL du flux.
-const PI_PUBLIC_URL = process.env.NEXT_PUBLIC_PI_URL || "http://192.168.1.191:8000";
 
 async function apiFetch<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${PROXY_BASE_URL}${path}`, {
@@ -58,7 +52,6 @@ export interface Stats {
   enrolled_count: number;
   accesses_today: number;
   matched_today: number;
-  unmatched_today: number;
 }
 
 export interface AccessLog {
@@ -110,9 +103,9 @@ export function enrollIdentity(
   return apiFetch("/enroll", { method: "POST", body: formData });
 }
 
-/* ---------- Flux vidéo (appel direct au Pi, hors proxy) ---------- */
+/* ---------- Flux vidéo (proxifié, même origine que le login) ---------- */
 
 export function getStreamUrl(detected: boolean = true): string {
   const endpoint = detected ? "/stream/detected" : "/stream/raw";
-  return `${PI_PUBLIC_URL}${endpoint}`;
+  return `${PROXY_BASE_URL}${endpoint}`;
 }

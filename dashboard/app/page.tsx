@@ -89,11 +89,7 @@ export default function DashboardPage() {
 
   const online = !error;
 
-  const streamUrl = (() => {
-    const base = getStreamUrl(true);
-    const sep = base.includes("?") ? "&" : "?";
-    return `${base}${sep}t=${streamKey}`;
-  })();
+  const streamUrl = `${getStreamUrl(true)}?t=${streamKey}`;
 
   return (
     <AppShell active="dashboard" online={online}>
@@ -104,7 +100,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <section className="card stream-card">
+      <section className="card">
         <div className="card-title">
           <IconCamera />
           {streamFailed

@@ -197,18 +197,6 @@ export const IconTrash = () => (
     <path d="M10 11v6M14 11v6" />
   </svg>
 );
-export const IconLock = () => (
-  <svg viewBox="0 0 24 24" width="16" height="16" {...stroke}>
-    <rect x="4" y="10" width="16" height="11" rx="2" />
-    <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-  </svg>
-);
-export const IconShield = () => (
-  <svg viewBox="0 0 24 24" width="28" height="28" {...stroke}>
-    <path d="M12 3 4 6v6c0 5 3.5 8.5 8 9 4.5-.5 8-4 8-9V6z" />
-    <path d="m9 12 2 2 4-4" />
-  </svg>
-);
 export const IconLogout = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" {...stroke}>
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />

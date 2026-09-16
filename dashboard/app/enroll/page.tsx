@@ -53,11 +53,7 @@ export default function EnrollPage() {
     return () => clearInterval(id);
   }, [streamFailed]);
 
-  const streamUrl = (() => {
-    const base = getStreamUrl(false);
-    const sep = base.includes("?") ? "&" : "?";
-    return `${base}${sep}t=${streamKey}`;
-  })();
+  const streamUrl = `${getStreamUrl(false)}?t=${streamKey}`;
 
   async function handleEnroll() {
     if (!fullName.trim()) {
@@ -165,7 +161,6 @@ export default function EnrollPage() {
             key={streamKey}
             src={streamUrl}
             alt="Flux caméra pour capture d'enrôlement"
-            crossOrigin="anonymous"
             className="stream"
             style={{ visibility: streamFailed ? "hidden" : "visible" }}
             onError={() => setStreamFailed(true)}

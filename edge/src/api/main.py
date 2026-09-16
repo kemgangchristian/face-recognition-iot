@@ -12,7 +12,7 @@ import threading
 import numpy as np
 import cv2
 import asyncio
-from fastapi import FastAPI, Security, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, Security, UploadFile, File, Form, HTTPException, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from capture.camera import Camera
 from detection.face_detector import FaceDetector
@@ -25,7 +25,7 @@ from matching.matcher import FaceMatcher
 from mqtt.publisher import EventPublisher
 from api.auth import verify_api_key
 from api.streaming import register_streaming_routes
-
+from api.session_auth import create_session, destroy_session, verify_session_or_api_key
 
 app = FastAPI(title="Face Recognition IoT - API Edge", version="0.1.0")
 
@@ -121,11 +121,29 @@ def health_check():
     return {"status": "ok"}
 
 
+@app.post("/login")
+def login(response: Response, password: str = Form(...)):
+    """
+    Authentifie l'accès au dashboard web via mot de passe, pose un cookie
+    de session HttpOnly (jamais lisible par JavaScript, contrairement à une
+    clé API embarquée dans le bundle JS).
+    """
+    create_session(response, password)
+    return {"authenticated": True}
+
+
+@app.post("/logout")
+def logout(request: Request, response: Response):
+    """Invalide la session en cours."""
+    destroy_session(request, response)
+    return {"logged_out": True}
+
+
 @app.post("/enroll")
 def enroll(
     full_name: str = Form(...),
     image: UploadFile = File(...),
-    _: None = Security(verify_api_key),
+    _: None = Security(verify_session_or_api_key),
 ):
     """
     Enrôle une nouvelle identité à partir d'une image uploadée.
@@ -163,7 +181,7 @@ def enroll(
 @app.post("/verify")
 def verify(
     image: UploadFile = File(...),
-    _: None = Security(verify_api_key),
+    _: None = Security(verify_session_or_api_key),
 ):
     """
     Identifie la personne présente sur une image uploadée.
@@ -193,7 +211,7 @@ def verify(
 
 
 @app.get("/logs")
-def get_logs(limit: int = 100, _: None = Security(verify_api_key)):
+def get_logs(limit: int = 100, _: None = Security(verify_session_or_api_key)):
     """
     Récupère l'historique des tentatives de reconnaissance, du plus récent
     au plus ancien.
@@ -211,7 +229,8 @@ def get_logs(limit: int = 100, _: None = Security(verify_api_key)):
 def trigger_purge_now(_: None = Security(verify_api_key)):
     """
     Déclenche une purge immédiate des logs expirés (utile pour tester
-    sans attendre le cycle automatique de 24h).
+    sans attendre le cycle automatique de 24h). Réservé à l'administration
+    technique : garde la clé API classique, pas de session dashboard.
     """
     with db_lock:
         deleted = enrollment.purge_old_logs(RETENTION_DAYS)
@@ -220,7 +239,7 @@ def trigger_purge_now(_: None = Security(verify_api_key)):
 
 
 @app.get("/identities")
-def get_identities(_: None = Security(verify_api_key)):
+def get_identities(_: None = Security(verify_session_or_api_key)):
     """
     Liste toutes les identités enrôlées (sans données biométriques).
     Utilisé par le dashboard pour afficher la liste des personnes enrôlées.
@@ -234,7 +253,7 @@ def get_identities(_: None = Security(verify_api_key)):
 @app.delete("/identities/{identity_id}")
 def delete_identity_endpoint(
     identity_id: int,
-    _: None = Security(verify_api_key),
+    _: None = Security(verify_session_or_api_key),
 ):
     """
     Supprime une identité et tous ses embeddings associés (droit à
@@ -251,7 +270,7 @@ def delete_identity_endpoint(
 
 
 @app.get("/stats")
-def get_stats(_: None = Security(verify_api_key)):
+def get_stats(_: None = Security(verify_session_or_api_key)):
     """
     Statistiques agrégées pour les cartes du dashboard : nombre
     d'identités enrôlées, accès du jour, taux de reconnaissance.

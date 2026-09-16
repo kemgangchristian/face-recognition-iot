@@ -7,11 +7,7 @@ import AppShell, {
   IconAlert,
   IconCheck,
 } from "@/components/AppShell";
-import {
-  getIdentities,
-  deleteIdentity,
-  type Identity,
-} from "@/lib/api";
+import { getIdentities, deleteIdentity, type Identity } from "@/lib/api";
 
 type Status =
   | { type: "success"; message: string }

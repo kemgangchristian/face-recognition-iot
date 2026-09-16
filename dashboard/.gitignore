@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Fichiers d'environnement locaux (secrets, tokens)
+.env.local
+.env*.local
+**/.env.local
+**/.env*.local

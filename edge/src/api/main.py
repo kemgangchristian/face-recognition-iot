@@ -1,5 +1,5 @@
 """
-API locale FastAPI — endpoints enrôlement, vérification, santé.
+API locale FastAPI — enrôlement, vérification, dashboard, streaming.
 Story 5.1 — Epic 5.
 """
 
@@ -9,11 +9,13 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import threading
+import asyncio
+
 import numpy as np
 import cv2
-import asyncio
 from fastapi import FastAPI, Security, UploadFile, File, Form, HTTPException, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
+
 from capture.camera import Camera
 from detection.face_detector import FaceDetector
 from detection.quality_filter import QualityFilter
@@ -24,15 +26,15 @@ from storage.enrollment import EnrollmentService
 from matching.matcher import FaceMatcher
 from mqtt.publisher import EventPublisher
 from api.auth import verify_api_key
-from api.streaming import register_streaming_routes
 from api.session_auth import create_session, destroy_session, verify_session_or_api_key
+from api.streaming import register_streaming_routes
 
 app = FastAPI(title="Face Recognition IoT - API Edge", version="0.1.0")
 
-# CORS : accepte localhost (dev local) et toute IP LAN 192.168.x.x sur :3000
-# (accès au dashboard depuis un autre appareil du réseau, ex. http://192.168.1.142:3000).
-# On utilise une regex plutôt que "*" car allow_credentials=True est incompatible
-# avec une liste d'origines littérale "*".
+# CORS : nécessaire uniquement pour le flux vidéo (balises <img> appelant
+# directement le Pi, hors du proxy Next.js — voir streaming.py). Toutes les
+# autres routes sont désormais consultées via le proxy /api/* de Next.js,
+# donc en même origine que le navigateur, sans besoin de CORS.
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+):3000",
@@ -41,8 +43,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Instanciation unique au démarrage — cohérent avec le pattern déjà utilisé
-# dans tous nos scripts (coûteux à charger, on le fait une seule fois).
+# --- Instanciation unique au démarrage ---------------------------------
+# Coûteux à charger (modèles ML, connexion caméra) : fait une seule fois,
+# réutilisé par toutes les requêtes.
 camera = Camera()
 camera.start()
 detector = FaceDetector()
@@ -54,24 +57,30 @@ db.connect()
 db.init_schema()
 encryption = EncryptionManager()
 enrollment = EnrollmentService(db, encryption)
-# Protège les accès concurrents à la connexion SQLite partagée entre threads
-# (FastAPI exécute chaque requête dans un thread différent du pool).
+
+# Protège les accès concurrents à la connexion SQLite partagée entre
+# threads (FastAPI exécute chaque requête dans un thread du pool).
 db_lock = threading.Lock()
+
+event_publisher = EventPublisher()
+matcher = FaceMatcher(enrollment, embedder, threshold=0.5)
+
+# Doit être enregistré après la création de `matcher` : le module de
+# streaming en a besoin pour l'identification en direct dans le flux vidéo.
+register_streaming_routes(app, camera, detector, quality_filter, embedder, matcher, enrollment, db_lock)
 
 RETENTION_DAYS = int(os.environ.get("ACCESS_LOGS_RETENTION_DAYS", "90"))
 
 
 async def periodic_purge():
-    """
-    Tâche de fond : purge automatiquement les logs d'accès expirés,
-    une fois par jour. Story 9.1 — conformité RGPD (minimisation des données).
-    """
+    """Tâche de fond : purge quotidienne des logs d'accès expirés.
+    Story 9.1 — conformité RGPD (minimisation des données)."""
     while True:
         with db_lock:
             deleted = enrollment.purge_old_logs(RETENTION_DAYS)
         if deleted > 0:
             print(f"Purge automatique : {deleted} log(s) supprimé(s) (> {RETENTION_DAYS} jours).")
-        await asyncio.sleep(24 * 60 * 60)  # 24 heures
+        await asyncio.sleep(24 * 60 * 60)
 
 
 @app.on_event("startup")
@@ -79,16 +88,7 @@ async def start_background_tasks():
     asyncio.create_task(periodic_purge())
 
 
-event_publisher = EventPublisher()
-matcher = FaceMatcher(enrollment, embedder, threshold=0.5)
-
-# Doit être placé APRÈS la création de matcher : le module de streaming a
-# besoin de l'instance déjà construite pour faire l'identification en
-# direct dans le flux vidéo.
-register_streaming_routes(
-    app, camera, detector, quality_filter, embedder, matcher, enrollment, db_lock
-)
-
+# --- Fonctions utilitaires ----------------------------------------------
 
 def decode_image(file_bytes: bytes) -> np.ndarray:
     """Décode une image uploadée (bytes JPEG/PNG) en tableau numpy BGR,
@@ -109,24 +109,30 @@ def detect_single_valid_face(frame: np.ndarray) -> dict:
     if not valid_detections:
         raise HTTPException(
             status_code=422,
-            detail="Aucun visage exploitable détecté (absent, trop petit, ou flou)."
+            detail="Aucun visage exploitable détecté (absent, trop petit, ou flou).",
         )
 
     return valid_detections[0]
 
 
+# --- Santé du service -----------------------------------------------------
+
 @app.get("/health")
 def health_check():
-    """Vérifie que le service est opérationnel."""
+    """Vérifie que le service est opérationnel. Endpoint public, sans
+    authentification, pour la supervision externe."""
     return {"status": "ok"}
 
+
+# --- Authentification dashboard -------------------------------------------
 
 @app.post("/login")
 def login(response: Response, password: str = Form(...)):
     """
-    Authentifie l'accès au dashboard web via mot de passe, pose un cookie
-    de session HttpOnly (jamais lisible par JavaScript, contrairement à une
-    clé API embarquée dans le bundle JS).
+    Authentifie l'accès au dashboard web via mot de passe et pose un
+    cookie de session HttpOnly. Ce cookie n'est jamais lisible par le
+    JavaScript du navigateur, contrairement à une clé embarquée dans le
+    bundle — voir session_auth.py pour le détail de ce choix.
     """
     create_session(response, password)
     return {"authenticated": True}
@@ -134,10 +140,13 @@ def login(response: Response, password: str = Form(...)):
 
 @app.post("/logout")
 def logout(request: Request, response: Response):
-    """Invalide la session en cours."""
+    """Invalide immédiatement la session en cours (déconnexion réelle,
+    pas une simple attente d'expiration)."""
     destroy_session(request, response)
     return {"logged_out": True}
 
+
+# --- Enrôlement et vérification ---------------------------------------------
 
 @app.post("/enroll")
 def enroll(
@@ -149,7 +158,7 @@ def enroll(
     Enrôle une nouvelle identité à partir d'une image uploadée.
 
     Args:
-        full_name: nom complet de la personne (champ de formulaire).
+        full_name: nom complet de la personne.
         image: fichier image (JPEG/PNG) contenant un visage exploitable.
     """
     frame = decode_image(image.file.read())
@@ -162,7 +171,7 @@ def enroll(
             identity_id = enrollment.enroll_identity(full_name)
             enrollment.add_embedding(identity_id, embedding)
     except Exception:
-        # Rollback : on ne laisse pas une identité sans embedding en base.
+        # Rollback explicite : jamais d'identité sans embedding en base.
         if identity_id is not None:
             with db_lock:
                 enrollment.delete_identity(identity_id)
@@ -184,7 +193,9 @@ def verify(
     _: None = Security(verify_session_or_api_key),
 ):
     """
-    Identifie la personne présente sur une image uploadée.
+    Identifie la personne présente sur une image uploadée (vérification
+    ponctuelle, à la demande — par opposition à l'identification continue
+    du flux vidéo, voir streaming.py).
 
     Args:
         image: fichier image (JPEG/PNG) contenant un visage exploitable.
@@ -210,11 +221,12 @@ def verify(
     return result
 
 
+# --- Journal d'accès --------------------------------------------------------
+
 @app.get("/logs")
 def get_logs(limit: int = 100, _: None = Security(verify_session_or_api_key)):
-    """
-    Récupère l'historique des tentatives de reconnaissance, du plus récent
-    au plus ancien.
+    """Récupère l'historique des tentatives de reconnaissance, du plus
+    récent au plus ancien.
 
     Args:
         limit: nombre maximum de logs à retourner (défaut 100).
@@ -230,7 +242,8 @@ def trigger_purge_now(_: None = Security(verify_api_key)):
     """
     Déclenche une purge immédiate des logs expirés (utile pour tester
     sans attendre le cycle automatique de 24h). Réservé à l'administration
-    technique : garde la clé API classique, pas de session dashboard.
+    technique : protégé par clé API uniquement, jamais appelé depuis le
+    dashboard.
     """
     with db_lock:
         deleted = enrollment.purge_old_logs(RETENTION_DAYS)
@@ -238,12 +251,12 @@ def trigger_purge_now(_: None = Security(verify_api_key)):
     return {"deleted_count": deleted, "retention_days": RETENTION_DAYS}
 
 
+# --- Gestion des identités ---------------------------------------------------
+
 @app.get("/identities")
 def get_identities(_: None = Security(verify_session_or_api_key)):
-    """
-    Liste toutes les identités enrôlées (sans données biométriques).
-    Utilisé par le dashboard pour afficher la liste des personnes enrôlées.
-    """
+    """Liste toutes les identités enrôlées, sans jamais exposer les
+    vecteurs d'embedding (données biométriques sensibles)."""
     with db_lock:
         identities = enrollment.list_identities()
 
@@ -257,8 +270,8 @@ def delete_identity_endpoint(
 ):
     """
     Supprime une identité et tous ses embeddings associés (droit à
-    l'effacement RGPD, Story 3.3, maintenant exposé via l'API pour
-    permettre la suppression depuis le dashboard).
+    l'effacement RGPD, Story 3.3, exposé ici via l'API pour permettre la
+    suppression directement depuis le dashboard).
     """
     with db_lock:
         deleted = enrollment.delete_identity(identity_id)
@@ -269,12 +282,12 @@ def delete_identity_endpoint(
     return {"deleted": True, "identity_id": identity_id}
 
 
+# --- Statistiques -----------------------------------------------------------
+
 @app.get("/stats")
 def get_stats(_: None = Security(verify_session_or_api_key)):
-    """
-    Statistiques agrégées pour les cartes du dashboard : nombre
-    d'identités enrôlées, accès du jour, taux de reconnaissance.
-    """
+    """Statistiques agrégées pour les cartes du dashboard : nombre
+    d'identités enrôlées, accès du jour, taux de reconnaissance."""
     with db_lock:
         stats = enrollment.get_stats()
 

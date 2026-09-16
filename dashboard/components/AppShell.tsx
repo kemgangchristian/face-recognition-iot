@@ -2,42 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getStats } from "@/lib/api";
-
-type ThemeMode = "auto" | "light" | "dark";
-
-function useTheme() {
-  const [mode, setMode] = useState<ThemeMode>("auto");
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    const stored = localStorage.getItem("theme") as ThemeMode | null;
-    if (stored === "light" || stored === "dark" || stored === "auto") {
-      setMode(stored);
-    }
-    setMounted(true);
-  }, []);
-
-  const cycle = () => {
-    setMode((prev) => {
-      const next: ThemeMode =
-        prev === "auto" ? "light" : prev === "light" ? "dark" : "auto";
-
-      const root = document.documentElement;
-      if (next === "auto") root.removeAttribute("data-theme");
-      else root.setAttribute("data-theme", next);
-
-      try {
-        if (next === "auto") localStorage.removeItem("theme");
-        else localStorage.setItem("theme", next);
-      } catch {}
-
-      return next;
-    });
-  };
-
-  return { mode, cycle, mounted };
-}
+import { useRouter } from "next/navigation";
+import { getStats, logout } from "@/lib/api";
+import ThemeToggle from "./ThemeToggle";
 
 type NavKey = "dashboard" | "enroll" | "identities" | "logs";
 
@@ -50,8 +17,9 @@ export default function AppShell({
   children: React.ReactNode;
   online?: boolean;
 }) {
-  const { mode, cycle, mounted } = useTheme();
   const [apiOnline, setApiOnline] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (online !== undefined) return;
@@ -72,6 +40,18 @@ export default function AppShell({
     };
   }, [online]);
 
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      await logout();
+    } catch {
+      // même si le backend échoue, on redirige
+    } finally {
+      router.push("/login");
+      router.refresh();
+    }
+  }
+
   const isOnline = online ?? apiOnline;
 
   return (
@@ -85,37 +65,20 @@ export default function AppShell({
         </div>
 
         <div className="header-actions">
-          <button
-            type="button"
-            onClick={cycle}
-            className="theme-toggle"
-            aria-label={`Thème : ${
-              mode === "auto"
-                ? "automatique"
-                : mode === "light"
-                ? "clair"
-                : "sombre"
-            }. Cliquer pour changer.`}
-            title={
-              mode === "auto"
-                ? "Thème : Auto (suit l'OS)"
-                : mode === "light"
-                ? "Thème : Clair"
-                : "Thème : Sombre"
-            }
-          >
-            {!mounted || mode === "auto" ? (
-              <IconThemeAuto />
-            ) : mode === "light" ? (
-              <IconSun />
-            ) : (
-              <IconMoon />
-            )}
-          </button>
-
+          <ThemeToggle />
           <span className={`pill ${isOnline ? "pill-on" : "pill-off"}`}>
             {isOnline ? "API en ligne" : "API hors ligne"}
           </span>
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="logout-btn"
+            aria-label="Se déconnecter"
+            title="Se déconnecter"
+          >
+            {loggingOut ? <span className="spinner-dark" /> : <IconLogout />}
+          </button>
         </div>
       </header>
 
@@ -234,27 +197,23 @@ export const IconTrash = () => (
     <path d="M10 11v6M14 11v6" />
   </svg>
 );
-export const IconSun = () => (
+export const IconLock = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" {...stroke}>
-    <circle cx="12" cy="12" r="4" />
-    <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    <rect x="4" y="10" width="16" height="11" rx="2" />
+    <path d="M8 10V7a4 4 0 0 1 8 0v3" />
   </svg>
 );
-export const IconMoon = () => (
-  <svg viewBox="0 0 24 24" width="16" height="16" {...stroke}>
-    <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+export const IconShield = () => (
+  <svg viewBox="0 0 24 24" width="28" height="28" {...stroke}>
+    <path d="M12 3 4 6v6c0 5 3.5 8.5 8 9 4.5-.5 8-4 8-9V6z" />
+    <path d="m9 12 2 2 4-4" />
   </svg>
 );
-export const IconThemeAuto = () => (
+export const IconLogout = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" {...stroke}>
-    <circle cx="12" cy="12" r="9" />
-    <path d="M12 3v18" />
-    <path
-      d="M12 3a9 9 0 0 1 0 18"
-      fill="currentColor"
-      opacity="0.35"
-      stroke="none"
-    />
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <path d="m16 17 5-5-5-5" />
+    <path d="M21 12H9" />
   </svg>
 );
 
@@ -299,7 +258,7 @@ const styles = `
   .dot-on { background: var(--green); box-shadow: 0 0 12px var(--green); }
   .dot-off { background: var(--red); box-shadow: 0 0 12px var(--red); }
 
-  .theme-toggle {
+  .logout-btn {
     display: inline-flex; align-items: center; justify-content: center;
     width: 34px; height: 34px;
     border-radius: 10px;
@@ -310,15 +269,24 @@ const styles = `
     transition: background .15s ease, color .15s ease,
                 border-color .15s ease, transform .1s ease;
   }
-  .theme-toggle:hover {
-    color: var(--foreground);
-    background: var(--surface-2);
-    border-color: var(--border-hover);
+  .logout-btn:hover:not(:disabled) {
+    color: var(--red);
+    background: color-mix(in srgb, var(--red) 10%, transparent);
+    border-color: color-mix(in srgb, var(--red) 35%, transparent);
   }
-  .theme-toggle:active { transform: scale(.94); }
-  .theme-toggle:focus-visible {
+  .logout-btn:active:not(:disabled) { transform: scale(.94); }
+  .logout-btn:disabled { opacity: .55; cursor: not-allowed; }
+  .logout-btn:focus-visible {
     outline: 2px solid var(--violet);
     outline-offset: 2px;
+  }
+
+  .spinner-dark {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 2px solid color-mix(in srgb, var(--muted) 40%, transparent);
+    border-top-color: var(--muted);
+    animation: spin .8s linear infinite;
   }
 
   .pill {
@@ -563,7 +531,6 @@ const styles = `
     padding: 24px; text-align: center; color: var(--muted); font-size: 13px;
   }
 
-  /* ---- Formulaire ---- */
   .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
   .field-label {
     font-size: 12px; font-weight: 600; color: var(--muted);
@@ -684,7 +651,7 @@ const styles = `
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .live-dot, .skeleton, .skeleton-num, .spinner { animation: none; }
-    .stat, .log-row, .nav-item, .btn { transition: none; }
+    .live-dot, .skeleton, .skeleton-num, .spinner, .spinner-dark { animation: none; }
+    .stat, .log-row, .nav-item, .btn, .logout-btn { transition: none; }
   }
 `;

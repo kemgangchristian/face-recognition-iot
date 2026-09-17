@@ -1,8 +1,22 @@
 # =============================================================================
-# Dockerfile — Module Edge (Raspberry Pi)
+# Dockerfile — Module Edge (Raspberry Pi) + Dashboard statique
 # Cible : linux/arm64
+# Contexte de build : racine du dépôt (voir infra/jenkins/Jenkinsfile)
 # =============================================================================
 
+# --- Étape 1 : export statique Next.js ---------------------------------------
+FROM node:20-slim AS dashboard-builder
+
+WORKDIR /dashboard
+
+COPY dashboard/package.json dashboard/package-lock.json ./
+RUN npm ci
+
+COPY dashboard/ ./
+# Pas de NEXT_PUBLIC_PI_URL : URLs relatives, même origine que FastAPI en prod.
+RUN npm run build
+
+# --- Étape 2 : API edge ------------------------------------------------------
 # Note : Trixie (pas Bookworm) est requis spécifiquement pour cette image,
 # car le dépôt Raspberry Pi (rpicam-apps) sert des paquets compilés pour
 # Debian 13, incompatibles avec les bibliothèques système de Debian 12.
@@ -23,7 +37,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # (absent des dépôts Debian standards). Clé copiée depuis l'hôte plutôt
 # que retéléchargée, pour garantir l'authenticité exacte de la source
 # déjà validée sur le système Raspberry Pi OS.
-COPY raspberrypi-archive-keyring.pgp /usr/share/keyrings/raspberrypi-archive-keyring.pgp
+COPY edge/raspberrypi-archive-keyring.pgp /usr/share/keyrings/raspberrypi-archive-keyring.pgp
 
 RUN echo "deb [signed-by=/usr/share/keyrings/raspberrypi-archive-keyring.pgp] http://archive.raspberrypi.com/debian/ trixie main" \
     > /etc/apt/sources.list.d/raspi.list \
@@ -33,11 +47,11 @@ RUN echo "deb [signed-by=/usr/share/keyrings/raspberrypi-archive-keyring.pgp] ht
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY edge/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
-COPY src/ ./src/
+COPY edge/src/ ./src/
 
 # Les modèles ML ne sont pas versionnés dans Git (poids lourds) — on les
 # télécharge directement pendant le build, pour que l'image soit auto-suffisante
@@ -48,6 +62,8 @@ RUN mkdir -p models \
         https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx \
     && curl -L -o models/face_recognition_sface.onnx \
         https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx
+
+COPY --from=dashboard-builder /dashboard/out /app/dashboard_static
 
 EXPOSE 8000
 

@@ -7,12 +7,10 @@ Deux flux exposés :
   - /stream/detected  : détection + identification en direct, nom affiché
                          sur l'image, journalisation avec cooldown
 
-Le flux vidéo (balise <img>) n'est PAS proxifié par le frontend Next.js
-(voir dashboard/lib/api.ts) : un flux MJPEG continu à travers une route
-serverless/edge est atypique et fragile (limites de durée de connexion,
-mise en tampon). Le navigateur contacte donc directement le Pi pour ces
-deux routes, avec `credentials: "include"` pour transmettre le cookie de
-session malgré l'origine différente.
+Le flux vidéo (balise <img>) contacte directement le Pi (voir
+dashboard/lib/api.ts). En production, le dashboard est servi par FastAPI
+(même origine). En développement (`next dev`), CORS + cookie de session
+permettent l'authentification malgré l'origine différente.
 """
 
 import os

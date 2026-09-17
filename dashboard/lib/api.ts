@@ -1,20 +1,16 @@
 // lib/api.ts
 //
-// Point d'entrée unique pour tous les appels au backend.
+// Point d'entrée unique pour tous les appels au backend Pi.
 //
-// Deux chemins distincts, volontairement différents :
-//   - Toutes les routes de données (stats, logs, identités, enrôlement,
-//     login/logout) passent par le proxy Next.js (/api/*), en même origine
-//     que le navigateur : pas de CORS, cookie de session transmis
-//     naturellement, aucune adresse ni secret exposé côté client.
-//   - Le flux vidéo (streaming MJPEG) passe aussi par le proxy (/api/stream/*)
-//     pour que le cookie de session posé au login soit transmis au Pi. Un
-//     appel direct au Pi échouerait (origine différente, cookie absent).
+// En production, le dashboard est servi par FastAPI (même origine) : les URLs
+// sont relatives et le cookie de session est transmis naturellement.
+// En développement (`next dev` sur :3000), NEXT_PUBLIC_PI_URL pointe vers le Pi
+// et CORS côté FastAPI autorise localhost:3000 avec credentials.
 
-const PROXY_BASE_URL = "/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_PI_URL ?? "";
 
 async function apiFetch<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${PROXY_BASE_URL}${path}`, {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     credentials: "include",
     headers: { ...options.headers },
@@ -103,9 +99,9 @@ export function enrollIdentity(
   return apiFetch("/enroll", { method: "POST", body: formData });
 }
 
-/* ---------- Flux vidéo (proxifié, même origine que le login) ---------- */
+/* ---------- Flux vidéo (appel direct au Pi, même origine ou CORS) ---------- */
 
 export function getStreamUrl(detected: boolean = true): string {
   const endpoint = detected ? "/stream/detected" : "/stream/raw";
-  return `${PROXY_BASE_URL}${endpoint}`;
+  return `${API_BASE_URL}${endpoint}`;
 }

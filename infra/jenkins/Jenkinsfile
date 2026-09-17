@@ -46,7 +46,7 @@ pipeline {
                         --platform linux/arm64 \
                         -t ${REGISTRY_IMAGE}:${BUILD_NUMBER} \
                         -t ${REGISTRY_IMAGE}:latest \
-                        -f edge/Dockerfile edge/ \
+                        -f edge/Dockerfile . \
                         --load
                 '''
             }

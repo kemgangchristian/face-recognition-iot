@@ -5,6 +5,7 @@ Story 5.1 — Epic 5.
 
 import sys
 import os
+from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -15,6 +16,7 @@ import numpy as np
 import cv2
 from fastapi import FastAPI, Security, UploadFile, File, Form, HTTPException, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from capture.camera import Camera
 from detection.face_detector import FaceDetector
@@ -31,10 +33,9 @@ from api.streaming import register_streaming_routes
 
 app = FastAPI(title="Face Recognition IoT - API Edge", version="0.1.0")
 
-# CORS : nécessaire uniquement pour le flux vidéo (balises <img> appelant
-# directement le Pi, hors du proxy Next.js — voir streaming.py). Toutes les
-# autres routes sont désormais consultées via le proxy /api/* de Next.js,
-# donc en même origine que le navigateur, sans besoin de CORS.
+# CORS : nécessaire en développement quand le dashboard tourne via `next dev`
+# (localhost:3000) et appelle directement le Pi. En production, FastAPI sert
+# les fichiers statiques exportés : même origine, pas de CORS requis.
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+):3000",
@@ -292,3 +293,17 @@ def get_stats(_: None = Security(verify_session_or_api_key)):
         stats = enrollment.get_stats()
 
     return stats
+
+
+# --- Dashboard statique (export Next.js) ------------------------------------
+# Monté en dernier : les routes API ci-dessus restent prioritaires.
+
+_dashboard_dir = Path(
+    os.environ.get("DASHBOARD_STATIC_DIR", "/app/dashboard_static")
+)
+if _dashboard_dir.is_dir():
+    app.mount(
+        "/",
+        StaticFiles(directory=_dashboard_dir, html=True),
+        name="dashboard",
+    )

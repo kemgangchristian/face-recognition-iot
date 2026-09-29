@@ -5,6 +5,7 @@ Story 5.1 — Epic 5.
 
 import sys
 import os
+import json
 from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -44,7 +45,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Instanciation unique au démarrage ---------------------------------
+# Instanciation unique au démarrage
 # Coûteux à charger (modèles ML, connexion caméra) : fait une seule fois,
 # réutilisé par toutes les requêtes.
 camera = Camera()
@@ -63,8 +64,27 @@ enrollment = EnrollmentService(db, encryption)
 # threads (FastAPI exécute chaque requête dans un thread du pool).
 db_lock = threading.Lock()
 
+
+def _load_calibrated_thresholds() -> dict:
+    """Charge les seuils calibrés sur données réelles du site
+    (edge/scripts/calibrate_threshold.py) s'ils existent, sinon retombe
+    sur les valeurs par défaut historiques (jamais mesurées sur ce site --
+    voir l'avertissement dans matcher.py)."""
+    path = os.path.join(os.path.dirname(__file__), "..", "..", "storage_data", "thresholds.json")
+    if os.path.exists(path):
+        with open(path) as f:
+            data = json.load(f)
+        print(f"Seuils calibrés chargés depuis {path} "
+              f"(statut : {data.get('status', 'inconnu')}).")
+        return {"threshold": data["threshold"], "threshold_low": data.get("threshold_low")}
+    print(f"Aucun fichier de calibration trouvé ({path}). "
+          f"Seuil par défaut (0.5) utilisé -- lancer "
+          f"scripts/calibrate_threshold.py dès que possible.")
+    return {"threshold": 0.5, "threshold_low": None}
+
+
 event_publisher = EventPublisher()
-matcher = FaceMatcher(enrollment, embedder, threshold=0.5)
+matcher = FaceMatcher(enrollment, embedder, **_load_calibrated_thresholds())
 
 # Doit être enregistré après la création de `matcher` : le module de
 # streaming en a besoin pour l'identification en direct dans le flux vidéo.
@@ -89,7 +109,7 @@ async def start_background_tasks():
     asyncio.create_task(periodic_purge())
 
 
-# --- Fonctions utilitaires ----------------------------------------------
+# Fonctions utilitaires 
 
 def decode_image(file_bytes: bytes) -> np.ndarray:
     """Décode une image uploadée (bytes JPEG/PNG) en tableau numpy BGR,
@@ -116,16 +136,20 @@ def detect_single_valid_face(frame: np.ndarray) -> dict:
     return valid_detections[0]
 
 
-# --- Santé du service -----------------------------------------------------
+# Santé du service
 
 @app.get("/health")
 def health_check():
     """Vérifie que le service est opérationnel. Endpoint public, sans
     authentification, pour la supervision externe."""
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "matcher_threshold": matcher.threshold,
+        "matcher_threshold_low": matcher.threshold_low,
+    }
 
 
-# --- Authentification dashboard -------------------------------------------
+# Authentification dashboard
 
 @app.post("/login")
 def login(response: Response, password: str = Form(...)):
@@ -147,7 +171,7 @@ def logout(request: Request, response: Response):
     return {"logged_out": True}
 
 
-# --- Enrôlement et vérification ---------------------------------------------
+# Enrôlement et vérification
 
 @app.post("/enroll")
 def enroll(
@@ -222,7 +246,7 @@ def verify(
     return result
 
 
-# --- Journal d'accès --------------------------------------------------------
+# Journal d'accès
 
 @app.get("/logs")
 def get_logs(limit: int = 100, _: None = Security(verify_session_or_api_key)):
@@ -252,7 +276,7 @@ def trigger_purge_now(_: None = Security(verify_api_key)):
     return {"deleted_count": deleted, "retention_days": RETENTION_DAYS}
 
 
-# --- Gestion des identités ---------------------------------------------------
+# Gestion des identités 
 
 @app.get("/identities")
 def get_identities(_: None = Security(verify_session_or_api_key)):
@@ -283,7 +307,7 @@ def delete_identity_endpoint(
     return {"deleted": True, "identity_id": identity_id}
 
 
-# --- Statistiques -----------------------------------------------------------
+# Statistiques
 
 @app.get("/stats")
 def get_stats(_: None = Security(verify_session_or_api_key)):
@@ -295,7 +319,7 @@ def get_stats(_: None = Security(verify_session_or_api_key)):
     return stats
 
 
-# --- Dashboard statique (export Next.js) ------------------------------------
+# Dashboard statique (export Next.js)
 # Monté en dernier : les routes API ci-dessus restent prioritaires.
 
 _dashboard_dir = Path(

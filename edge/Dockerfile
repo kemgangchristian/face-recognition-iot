@@ -52,6 +52,7 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 COPY edge/src/ ./src/
+COPY edge/scripts/ ./scripts/
 
 # Les modèles ML ne sont pas versionnés dans Git (poids lourds) — on les
 # télécharge directement pendant le build, pour que l'image soit auto-suffisante

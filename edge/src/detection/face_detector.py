@@ -33,11 +33,13 @@ class FaceDetector:
                 f"Voir edge/models/README.md pour le télécharger."
             )
 
+        self._model_path = model_path
         self.confidence_threshold = confidence_threshold
+        self._input_size = (320, 320)  # taille par défaut, ajustée dynamiquement dans detect()
         self._detector = cv2.FaceDetectorYN.create(
             model=model_path,
             config="",
-            input_size=(320, 320),  # taille par défaut, ajustée dynamiquement dans detect()
+            input_size=self._input_size,
             score_threshold=confidence_threshold,
         )
 
@@ -46,7 +48,8 @@ class FaceDetector:
         Détecte les visages dans une frame.
 
         Args:
-            frame: image numpy.ndarray (format BGR, issue de Camera.read_frame()).
+            frame: image numpy.ndarray (format BGR, issue de Camera.read_frame()
+                   ou d'une image uploadée décodée en BGR).
 
         Returns:
             list[dict]: une entrée par visage détecté, avec les clés :
@@ -55,7 +58,25 @@ class FaceDetector:
                 - "landmarks": liste de 5 points (yeux, nez, coins de bouche)
         """
         height, width = frame.shape[:2]
-        self._detector.setInputSize((width, height))
+
+        # Bug connu du moteur DNN "graphe" d'OpenCV >= 4.10/5.0
+        # (net_impl2.cpp) : réutiliser setInputSize() sur une instance déjà
+        # utilisée à une AUTRE taille laisse le graphe interne compilé pour
+        # l'ancienne forme, et le forward suivant lève
+        # cv2.error: Assertion failed) buf.shape() == m.shape() in function
+        # 'forwardGraph'. Le flux vidéo ne déclenche jamais ce cas (toujours
+        # la même résolution caméra), mais une image uploadée (/enroll,
+        # /verify) peut avoir une résolution différente -- on recrée alors
+        # l'instance pour obtenir un graphe compilé directement à la bonne
+        # forme, au lieu de changer la taille sur l'instance existante.
+        if (width, height) != self._input_size:
+            self._input_size = (width, height)
+            self._detector = cv2.FaceDetectorYN.create(
+                model=self._model_path,
+                config="",
+                input_size=self._input_size,
+                score_threshold=self.confidence_threshold,
+            )
 
         _, faces = self._detector.detect(frame)
 
@@ -73,3 +94,4 @@ class FaceDetector:
                 })
 
         return results
+        

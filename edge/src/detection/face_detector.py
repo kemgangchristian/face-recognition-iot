@@ -5,12 +5,25 @@ Story 1.2 - Epic 1.
 
 import os
 import threading
+from collections import OrderedDict
 
 import cv2
 
 
 class FaceDetector:
-    """Détecte les visages présents dans une image via le modèle YuNet."""
+    """Détecte les visages présents dans une image via le modèle YuNet.
+
+    Une instance YuNet distincte est conservée PAR TAILLE D'ENTRÉE (caméra,
+    images uploadées de /enroll et /verify...) et n'est jamais redimensionnée
+    une fois créée. Raison : changer la taille d'une instance déjà utilisée
+    via setInputSize() fait échouer le moteur DNN « graphe » d'OpenCV >= 4.10/5.0
+    (cv2.error: Assertion failed) buf.shape() == m.shape() in function
+    'forwardGraph'). Un verrou sérialise les appels : le flux de contrôle
+    d'accès, l'aide à la capture et les endpoints partagent cette instance
+    depuis des threads différents.
+    """
+
+    MAX_CACHED_SIZES = 4  # tailles d'entrée distinctes conservées en mémoire
 
     def __init__(
         self,
@@ -37,24 +50,31 @@ class FaceDetector:
 
         self._model_path = model_path
         self.confidence_threshold = confidence_threshold
-        self._input_size = (320, 320)  # taille par défaut, ajustée dynamiquement dans detect()
-        self._detector = cv2.FaceDetectorYN.create(
-            model=model_path,
-            config="",
-            input_size=self._input_size,
-            score_threshold=confidence_threshold,
-        )
-        # Protège l'instance YuNet, partagée entre le thread du flux vidéo
-        # (résolution caméra, en continu) et les requêtes /enroll et /verify
-        # (résolution de la photo uploadée, ponctuelles). Sans ce verrou, un
-        # changement de taille déclenché par l'un peut remplacer
-        # self._detector pendant qu'un appel detect() de l'autre est en
-        # cours, provoquant un mismatch de forme dans le graphe interne
-        # (cv2.error: ... buf.shape() == m.shape() in function
-        # 'forwardGraph' -- bug du moteur DNN "graphe" d'OpenCV >= 4.10/5.0
-        # quand setInputSize() change la taille sur une instance déjà
-        # utilisée).
+        self._detectors: OrderedDict = OrderedDict()
         self._lock = threading.Lock()
+
+        # Charge une première instance dès maintenant : un modèle absent ou
+        # corrompu doit échouer au démarrage, pas à la première détection.
+        self._detector_for((320, 320))
+
+    def _detector_for(self, size: tuple):
+        """Retourne l'instance YuNet dédiée à cette taille (largeur, hauteur),
+        en la créant au besoin. À appeler sous verrou (sauf dans __init__)."""
+        detector = self._detectors.get(size)
+        if detector is not None:
+            self._detectors.move_to_end(size)
+            return detector
+
+        detector = cv2.FaceDetectorYN.create(
+            model=self._model_path,
+            config="",
+            input_size=size,
+            score_threshold=self.confidence_threshold,
+        )
+        self._detectors[size] = detector
+        while len(self._detectors) > self.MAX_CACHED_SIZES:
+            self._detectors.popitem(last=False)
+        return detector
 
     def detect(self, frame):
         """
@@ -73,16 +93,8 @@ class FaceDetector:
         height, width = frame.shape[:2]
 
         with self._lock:
-            if (width, height) != self._input_size:
-                self._input_size = (width, height)
-                self._detector = cv2.FaceDetectorYN.create(
-                    model=self._model_path,
-                    config="",
-                    input_size=self._input_size,
-                    score_threshold=self.confidence_threshold,
-                )
-
-            _, faces = self._detector.detect(frame)
+            detector = self._detector_for((width, height))
+            _, faces = detector.detect(frame)
 
         results = []
         if faces is not None:

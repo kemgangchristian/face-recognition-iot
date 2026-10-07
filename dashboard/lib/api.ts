@@ -9,6 +9,22 @@
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_PI_URL ?? "";
 
+/**
+ * Extrait un message lisible d'une réponse d'erreur FastAPI : le champ
+ * `detail` quand le corps est du JSON de la forme {"detail": "..."},
+ * sinon le texte brut.
+ */
+async function readErrorDetail(response: Response): Promise<string> {
+  const raw = await response.text();
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.detail === "string") return parsed.detail;
+  } catch {
+    // corps non JSON : on retombe sur le texte brut
+  }
+  return raw;
+}
+
 async function apiFetch<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
@@ -29,7 +45,7 @@ async function apiFetch<T = unknown>(path: string, options: RequestInit = {}): P
   }
 
   if (!response.ok) {
-    throw new Error(`Erreur API (${response.status}): ${await response.text()}`);
+    throw new Error(`Erreur API (${response.status}): ${await readErrorDetail(response)}`);
   }
 
   return response.json() as Promise<T>;
@@ -56,6 +72,11 @@ export interface AccessLog {
   matched: boolean;
   confidence: number;
   timestamp: string;
+}
+
+export interface FaceStatus {
+  ready: boolean;
+  reason: string;
 }
 
 /* ---------- Authentification ---------- */
@@ -97,6 +118,15 @@ export function enrollIdentity(
   formData.append("image", imageFile);
 
   return apiFetch("/enroll", { method: "POST", body: formData });
+}
+
+/**
+ * Indique si le visage devant la caméra est bien placé pour une capture
+ * d'enrôlement. Lecture seule : le serveur analyse la frame sans la
+ * conserver.
+ */
+export function getFaceStatus(): Promise<FaceStatus> {
+  return apiFetch("/camera/face-status");
 }
 
 /* ---------- Flux vidéo (appel direct au Pi, même origine ou CORS) ---------- */

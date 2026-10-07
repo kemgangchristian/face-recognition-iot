@@ -30,7 +30,7 @@ Le script :
 3. calcule un seuil bas (second facteur) pour TARGET_FAR_GREY,
 4. écrit edge/storage_data/thresholds.json, lu par l'API au démarrage.
 
-Avec seulement quelques dizaines de personnes de calibration, la borne
+⚠️ Avec seulement quelques dizaines de personnes de calibration, la borne
 statistique sur le taux de fausses acceptations reste large (même limite
 que celle rencontrée avec LFW dans le Notebook 2) -- à refaire/élargir
 périodiquement à mesure que plus de monde passe devant la caméra.
@@ -130,7 +130,7 @@ def main():
         print(f"Extraction -- {person_dir.name} ({len(images)} image(s))")
         embs = extract_all_embeddings(images, detector, quality_filter, embedder)
         if len(embs) < 2:
-            print(f"{person_dir.name} : moins de 2 images exploitables, ignorée pour le calcul intra-identité.")
+            print(f"  ⚠️ {person_dir.name} : moins de 2 images exploitables, ignorée pour le calcul intra-identité.")
             continue
         identities[person_dir.name] = embs
 
@@ -142,7 +142,7 @@ def main():
     print(f"\n{n_genuine_people} personne(s) exploitable(s) pour la calibration, "
           f"{len(impostor_embeddings)} image(s) d'imposteurs.")
     if n_genuine_people < 10:
-        print("Moins de 10 personnes : la calibration sera très peu fiable statistiquement. "
+        print("⚠️ Moins de 10 personnes : la calibration sera très peu fiable statistiquement. "
               "Continue seulement pour un premier réglage grossier, à refaire avec plus de monde.")
 
     g_scores = genuine_pairs_scores(identities, embedder)
@@ -182,3 +182,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    

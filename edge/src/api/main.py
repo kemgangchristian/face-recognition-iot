@@ -5,11 +5,11 @@ Story 5.1 — Epic 5.
 
 import sys
 import os
-import json
 from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import json
 import threading
 import asyncio
 
@@ -19,8 +19,12 @@ from fastapi import FastAPI, Security, UploadFile, File, Form, HTTPException, Re
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from access.access_controller import AccessController, AccessConfig
+from access.door_actuator import build_actuator_from_env
 from capture.camera import Camera
 from detection.face_detector import FaceDetector
+from detection.face_readiness import FaceReadinessAssessor
+from detection.liveness import LivenessChecker
 from detection.quality_filter import QualityFilter
 from recognition.face_embedder import FaceEmbedder
 from storage.database import Database
@@ -45,7 +49,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Instanciation unique au démarrage
+# --- Instanciation unique au démarrage ---------------------------------
 # Coûteux à charger (modèles ML, connexion caméra) : fait une seule fois,
 # réutilisé par toutes les requêtes.
 camera = Camera()
@@ -53,6 +57,7 @@ camera.start()
 detector = FaceDetector()
 quality_filter = QualityFilter()
 embedder = FaceEmbedder()
+readiness = FaceReadinessAssessor(detector, quality_filter)
 
 db = Database()
 db.connect()
@@ -61,7 +66,8 @@ encryption = EncryptionManager()
 enrollment = EnrollmentService(db, encryption)
 
 # Protège les accès concurrents à la connexion SQLite partagée entre
-# threads (FastAPI exécute chaque requête dans un thread du pool).
+# threads (FastAPI exécute chaque requête dans un thread du pool, et le
+# contrôleur d'accès tourne dans le sien).
 db_lock = threading.Lock()
 
 
@@ -77,18 +83,52 @@ def _load_calibrated_thresholds() -> dict:
         print(f"Seuils calibrés chargés depuis {path} "
               f"(statut : {data.get('status', 'inconnu')}).")
         return {"threshold": data["threshold"], "threshold_low": data.get("threshold_low")}
-    print(f"Aucun fichier de calibration trouvé ({path}). "
+    print(f"⚠️ Aucun fichier de calibration trouvé ({path}). "
           f"Seuil par défaut (0.5) utilisé -- lancer "
           f"scripts/calibrate_threshold.py dès que possible.")
     return {"threshold": 0.5, "threshold_low": None}
 
 
+def _build_liveness() -> LivenessChecker:
+    """Construit le vérificateur de vivacité depuis l'environnement :
+    LIVENESS_MODE (parallax | movement | off), LIVENESS_MIN_PARALLAX,
+    LIVENESS_WINDOW_SECONDS, LIVENESS_MAX_SPECTRAL_PEAK (désactivé par défaut)."""
+    peak = os.environ.get("LIVENESS_MAX_SPECTRAL_PEAK")
+    liveness = LivenessChecker(
+        window_seconds=float(os.environ.get("LIVENESS_WINDOW_SECONDS", "3.0")),
+        min_parallax=float(os.environ.get("LIVENESS_MIN_PARALLAX", "0.12")),
+        mode=os.environ.get("LIVENESS_MODE", "parallax"),
+        max_spectral_peak=float(peak) if peak else None,
+    )
+    if liveness.mode != "parallax":
+        print(f"⚠️ LIVENESS_MODE={liveness.mode} : protection anti-photo AFFAIBLIE ou "
+              f"désactivée. À réserver aux démonstrations, jamais à une porte réelle.")
+    return liveness
+
+
 event_publisher = EventPublisher()
 matcher = FaceMatcher(enrollment, embedder, **_load_calibrated_thresholds())
 
-# Doit être enregistré après la création de `matcher` : le module de
-# streaming en a besoin pour l'identification en direct dans le flux vidéo.
-register_streaming_routes(app, camera, detector, quality_filter, embedder, matcher, enrollment, db_lock)
+# Contrôleur d'accès : boucle de reconnaissance en arrière-plan (caméra ->
+# détection -> suivi -> reconnaissance -> vivacité -> porte), indépendante de
+# tout navigateur connecté. Démarré dans l'événement `startup` ci-dessous.
+door_actuator = build_actuator_from_env()
+access_controller = AccessController(
+    camera=camera,
+    detector=detector,
+    quality_filter=quality_filter,
+    embedder=embedder,
+    matcher=matcher,
+    enrollment=enrollment,
+    db_lock=db_lock,
+    liveness=_build_liveness(),
+    actuator=door_actuator,
+    publisher=event_publisher,
+    config=AccessConfig.from_env(),
+)
+
+# Le flux /stream/detected diffuse la vue du contrôleur.
+register_streaming_routes(app, camera, access_controller)
 
 RETENTION_DAYS = int(os.environ.get("ACCESS_LOGS_RETENTION_DAYS", "90"))
 
@@ -106,10 +146,17 @@ async def periodic_purge():
 
 @app.on_event("startup")
 async def start_background_tasks():
+    access_controller.start()
     asyncio.create_task(periodic_purge())
 
 
-# Fonctions utilitaires 
+@app.on_event("shutdown")
+async def stop_background_tasks():
+    # Arrête la boucle et VERROUILLE la porte (actionneur fermé proprement).
+    access_controller.stop()
+
+
+# --- Fonctions utilitaires ----------------------------------------------
 
 def decode_image(file_bytes: bytes) -> np.ndarray:
     """Décode une image uploadée (bytes JPEG/PNG) en tableau numpy BGR,
@@ -136,20 +183,24 @@ def detect_single_valid_face(frame: np.ndarray) -> dict:
     return valid_detections[0]
 
 
-# Santé du service
+# --- Santé du service -----------------------------------------------------
 
 @app.get("/health")
 def health_check():
     """Vérifie que le service est opérationnel. Endpoint public, sans
-    authentification, pour la supervision externe."""
+    authentification, pour la supervision externe. `status` vaut "degraded"
+    si la boucle de contrôle d'accès ne produit plus de résultats (caméra ou
+    modèle en panne) : l'API répond alors, mais la porte ne s'ouvrira pas."""
+    controller_status = access_controller.status()
     return {
-        "status": "ok",
+        "status": "ok" if controller_status["healthy"] else "degraded",
         "matcher_threshold": matcher.threshold,
         "matcher_threshold_low": matcher.threshold_low,
+        "access_controller": controller_status,
     }
 
 
-# Authentification dashboard
+# --- Authentification dashboard -------------------------------------------
 
 @app.post("/login")
 def login(response: Response, password: str = Form(...)):
@@ -171,7 +222,23 @@ def logout(request: Request, response: Response):
     return {"logged_out": True}
 
 
-# Enrôlement et vérification
+# --- Aide à la capture d'enrôlement -----------------------------------------
+
+@app.get("/camera/face-status")
+def camera_face_status(_: None = Security(verify_session_or_api_key)):
+    """
+    Indique si la personne devant la caméra est bien placée pour une
+    capture d'enrôlement (voir FaceReadinessAssessor). Appelé par la page
+    d'enrôlement du dashboard pour n'activer le bouton « Capturer » que
+    lorsque le visage est bien visible. Lecture seule : rien n'est
+    enregistré, la frame est analysée puis jetée.
+    """
+    frame = camera.read_frame()
+    face, reason = readiness.assess(frame)
+    return {"ready": face is not None, "reason": reason}
+
+
+# --- Enrôlement et vérification ---------------------------------------------
 
 @app.post("/enroll")
 def enroll(
@@ -182,12 +249,17 @@ def enroll(
     """
     Enrôle une nouvelle identité à partir d'une image uploadée.
 
+    La même exigence de qualité que l'indicateur du dashboard est
+    revérifiée ici côté serveur : l'interface ne peut pas être contournée.
+
     Args:
         full_name: nom complet de la personne.
         image: fichier image (JPEG/PNG) contenant un visage exploitable.
     """
     frame = decode_image(image.file.read())
-    face = detect_single_valid_face(frame)
+    face, reason = readiness.assess(frame)
+    if face is None:
+        raise HTTPException(status_code=422, detail=reason)
     embedding = embedder.extract(frame, face)
 
     identity_id = None
@@ -220,7 +292,11 @@ def verify(
     """
     Identifie la personne présente sur une image uploadée (vérification
     ponctuelle, à la demande — par opposition à l'identification continue
-    du flux vidéo, voir streaming.py).
+    du contrôleur d'accès, voir access/access_controller.py).
+
+    ⚠️ Cet endpoint identifie, il N'OUVRE PAS la porte et ne vérifie pas la
+    vivacité (une image seule n'en porte pas la preuve). Seul le contrôleur
+    d'accès actionne la porte.
 
     Args:
         image: fichier image (JPEG/PNG) contenant un visage exploitable.
@@ -246,7 +322,7 @@ def verify(
     return result
 
 
-# Journal d'accès
+# --- Journal d'accès --------------------------------------------------------
 
 @app.get("/logs")
 def get_logs(limit: int = 100, _: None = Security(verify_session_or_api_key)):
@@ -276,7 +352,7 @@ def trigger_purge_now(_: None = Security(verify_api_key)):
     return {"deleted_count": deleted, "retention_days": RETENTION_DAYS}
 
 
-# Gestion des identités 
+# --- Gestion des identités ---------------------------------------------------
 
 @app.get("/identities")
 def get_identities(_: None = Security(verify_session_or_api_key)):
@@ -307,7 +383,7 @@ def delete_identity_endpoint(
     return {"deleted": True, "identity_id": identity_id}
 
 
-# Statistiques
+# --- Statistiques -----------------------------------------------------------
 
 @app.get("/stats")
 def get_stats(_: None = Security(verify_session_or_api_key)):
@@ -319,7 +395,7 @@ def get_stats(_: None = Security(verify_session_or_api_key)):
     return stats
 
 
-# Dashboard statique (export Next.js)
+# --- Dashboard statique (export Next.js) ------------------------------------
 # Monté en dernier : les routes API ci-dessus restent prioritaires.
 
 _dashboard_dir = Path(
@@ -331,3 +407,4 @@ if _dashboard_dir.is_dir():
         StaticFiles(directory=_dashboard_dir, html=True),
         name="dashboard",
     )
+    

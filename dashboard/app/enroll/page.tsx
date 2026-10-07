@@ -8,12 +8,22 @@ import AppShell, {
   IconAlert,
   IconVideoOff,
 } from "@/components/AppShell";
-import { enrollIdentity, getStreamUrl } from "@/lib/api";
+import {
+  enrollIdentity,
+  getFaceStatus,
+  getStreamUrl,
+  type FaceStatus,
+} from "@/lib/api";
 
 type Status =
   | { type: "success"; message: string }
   | { type: "error"; message: string }
   | null;
+
+// Intervalle entre deux vérifications « le visage est-il bien placé ? ».
+// Le sondage ne tourne que tant que cette page est ouverte, que le flux est
+// actif et qu'aucun enrôlement n'est en cours ; rien n'est enregistré.
+const FACE_POLL_INTERVAL_MS = 800;
 
 export default function EnrollPage() {
   const [fullName, setFullName] = useState("");
@@ -23,6 +33,7 @@ export default function EnrollPage() {
   const [streamFailed, setStreamFailed] = useState(false);
   const [streamLoaded, setStreamLoaded] = useState(false);
   const [streamKey, setStreamKey] = useState(0);
+  const [faceStatus, setFaceStatus] = useState<FaceStatus | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
@@ -53,6 +64,38 @@ export default function EnrollPage() {
     return () => clearInterval(id);
   }, [streamFailed]);
 
+  // Sondage de l'état du visage : le bouton « Capturer » ne s'active que
+  // lorsque la personne est bien placée devant la caméra. Les requêtes sont
+  // séquentielles (la suivante n'est planifiée qu'une fois la précédente
+  // terminée) pour ne jamais en empiler plusieurs sur le Pi.
+  useEffect(() => {
+    if (!streamLoaded || streamFailed || loading) return;
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    async function poll() {
+      try {
+        const next = await getFaceStatus();
+        if (!cancelled) setFaceStatus(next);
+      } catch {
+        if (!cancelled) {
+          setFaceStatus({
+            ready: false,
+            reason: "État de la caméra indisponible.",
+          });
+        }
+      }
+      if (!cancelled) timer = setTimeout(poll, FACE_POLL_INTERVAL_MS);
+    }
+
+    poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [streamLoaded, streamFailed, loading]);
+
   const streamUrl = `${getStreamUrl(false)}?t=${streamKey}`;
 
   async function handleEnroll() {
@@ -71,6 +114,14 @@ export default function EnrollPage() {
       setStatus({
         type: "error",
         message: "Le flux caméra n'est pas disponible.",
+      });
+      return;
+    }
+
+    if (!faceStatus?.ready) {
+      setStatus({
+        type: "error",
+        message: faceStatus?.reason ?? "Attends que le visage soit détecté.",
       });
       return;
     }
@@ -123,8 +174,9 @@ export default function EnrollPage() {
     }
   }
 
+  const faceReady = faceStatus?.ready === true;
   const canSubmit =
-    !loading && !streamFailed && fullName.trim().length > 0;
+    !loading && !streamFailed && faceReady && fullName.trim().length > 0;
 
   return (
     <AppShell active="enroll">
@@ -180,6 +232,20 @@ export default function EnrollPage() {
             </div>
           )}
         </div>
+
+        {!streamFailed && streamLoaded && (
+          <div
+            className={`alert ${faceReady ? "alert-success" : ""}`}
+            style={{ marginTop: 12, marginBottom: 0 }}
+            role="status"
+            aria-live="polite"
+          >
+            {faceReady ? <IconCheck /> : <IconAlert />}
+            <span>
+              {faceStatus?.reason ?? "Recherche du visage…"}
+            </span>
+          </div>
+        )}
       </section>
 
       <section className="card">
@@ -224,7 +290,9 @@ export default function EnrollPage() {
       </section>
 
       <footer className="dash-footer">
-        Place le visage bien centré, face à la caméra, avant de capturer.
+        Le bouton s&apos;active quand une seule personne est bien centrée et
+        nette face à la caméra. Aucune image n&apos;est enregistrée : seule
+        l&apos;empreinte numérique du visage l&apos;est.
       </footer>
     </AppShell>
   );

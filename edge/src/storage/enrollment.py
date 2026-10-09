@@ -59,12 +59,12 @@ class EnrollmentService:
 
     def get_all_embeddings(self) -> list[dict]:
         """
-        Récupère tous les embeddings de la base, déchiffrés, avec l'identité associée.
-        Utilise par FaceMatcher."""
+        Recupere tous les embeddings dechiffres, avec l identite associee.
+        Utilise par FaceMatcher.
 
         Returns:
-            list[dict]: chaque entrée contient "identity_id", "full_name", "vector"
-                        (numpy.ndarray déchiffré, prêt à comparer).
+            list[dict]: chaque entree contient identity_id, full_name, vector
+                        (numpy.ndarray dechiffre, pret a comparer).
         """
         conn = self.db.get_connection()
         cursor = conn.cursor()
@@ -91,18 +91,14 @@ class EnrollmentService:
     
     def delete_identity(self, identity_id: int) -> bool:
         """
-        Supprime une identité et tous ses embeddings associés (droit à
-        l'effacement RGPD). Les embeddings sont supprimés automatiquement
-        via ON DELETE CASCADE défini dans le schéma. Les logs d'accès
-        associés sont conservés mais anonymisés (identity_id mis à NULL
-        via ON DELETE SET NULL) pour préserver l'audit de sécurité.
+        Supprime une identite et tous ses embeddings (ON DELETE CASCADE).
+        Les logs d acces restent, identity_id mis a NULL (audit).
 
         Args:
-            identity_id: id de l'identité à supprimer.
+            identity_id: id de l identite a supprimer.
 
         Returns:
-            bool: True si une identité a bien été supprimée, False si
-                  aucune identité ne correspondait à cet id.
+            bool: True si une identite a ete supprimee, False sinon.
         """
         conn = self.db.get_connection()
         cursor = conn.cursor()

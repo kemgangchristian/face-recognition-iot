@@ -66,6 +66,10 @@ export interface Stats {
   matched_today: number;
 }
 
+export interface Health {
+  matcher_threshold: number;
+}
+
 export interface AccessLog {
   id: number;
   full_name: string | null;
@@ -103,6 +107,10 @@ export function deleteIdentity(id: number): Promise<{ deleted: boolean }> {
 
 export function getStats(): Promise<Stats> {
   return apiFetch("/stats");
+}
+
+export function getHealth(): Promise<Health> {
+  return apiFetch("/health");
 }
 
 export function getLogs(limit = 100): Promise<{ count: number; logs: AccessLog[] }> {

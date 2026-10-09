@@ -14,14 +14,30 @@ import AppShell, {
 import {
   getStats,
   getLogs,
+  getHealth,
   getStreamUrl,
   type Stats,
   type AccessLog,
+  type Health,
 } from "@/lib/api";
+
+const POLL_MS = 2000;
+const FRESH_MS = 45000;
+
+type DoorState = "idle" | "granted" | "denied";
+
+function doorStateFromLog(log: AccessLog | undefined, now: number): DoorState {
+  if (!log) return "idle";
+  const age = now - new Date(log.timestamp).getTime();
+  if (Number.isNaN(age) || age > FRESH_MS) return "idle";
+  return log.matched ? "granted" : "denied";
+}
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [logs, setLogs] = useState<AccessLog[]>([]);
+  const [health, setHealth] = useState<Health | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -34,13 +50,16 @@ export default function DashboardPage() {
     let cancelled = false;
     async function loadData() {
       try {
-        const [statsData, logsData] = await Promise.all([
+        const [statsData, logsData, healthData] = await Promise.all([
           getStats(),
-          getLogs(5),
+          getLogs(8),
+          getHealth().catch(() => null),
         ]);
         if (cancelled) return;
         setStats(statsData);
         setLogs(logsData.logs);
+        if (healthData) setHealth(healthData);
+        setNow(Date.now());
         setError(null);
       } catch {
         if (cancelled) return;
@@ -52,7 +71,7 @@ export default function DashboardPage() {
       }
     }
     loadData();
-    const id = setInterval(loadData, 5000);
+    const id = setInterval(loadData, POLL_MS);
     return () => {
       cancelled = true;
       clearInterval(id);
@@ -88,11 +107,37 @@ export default function DashboardPage() {
   }, [streamFailed]);
 
   const online = !error;
-
+  const latest = logs[0];
+  const door: DoorState = doorStateFromLog(latest, now);
   const streamUrl = `${getStreamUrl(true)}?t=${streamKey}`;
 
+  let doorLabel: string;
+  let doorName: string;
+  let doorInitial: string;
+  switch (door) {
+    case "granted":
+      doorLabel = "Autorise";
+      doorName = latest?.full_name || "Identite reconnue";
+      doorInitial = (latest?.full_name || "A").charAt(0).toUpperCase();
+      break;
+    case "denied":
+      doorLabel = "Refuse";
+      doorName = "Inconnu";
+      doorInitial = "!";
+      break;
+    case "idle":
+      doorLabel = "En attente";
+      doorName = "Personne devant la porte";
+      doorInitial = "·";
+      break;
+    default: {
+      const _exhaustive: never = door;
+      return _exhaustive;
+    }
+  }
+
   return (
-    <AppShell active="dashboard" online={online}>
+    <AppShell active="dashboard" online={online} wide>
       {error && (
         <div className="alert alert-error" role="alert">
           <IconAlert />
@@ -100,43 +145,90 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <section className="card">
-        <div className="card-title">
-          <IconCamera />
-          {streamFailed
-            ? "Flux caméra indisponible"
-            : "Flux caméra avec détection"}
-          {!streamFailed && streamLoaded && (
-            <span className="live">
-              <span className="live-dot" /> LIVE
-            </span>
-          )}
+      <section className="hero">
+        <div className="card">
+          <div className="card-title">
+            <IconCamera />
+            {streamFailed ? "Flux caméra indisponible" : "Entrée"}
+            {!streamFailed && streamLoaded && (
+              <span className="live">
+                <span className="live-dot" /> LIVE
+              </span>
+            )}
+          </div>
+
+          <div className="stream-wrap">
+            <img
+              ref={imgRef}
+              key={streamKey}
+              src={streamUrl}
+              alt="Flux caméra avec détection"
+              className="stream"
+              style={{ visibility: streamFailed ? "hidden" : "visible" }}
+              onError={() => setStreamFailed(true)}
+            />
+
+            {!streamFailed && <div className="stream-overlay" aria-hidden />}
+
+            {!streamFailed && streamLoaded && (
+              <div className="stream-hud">
+                <span
+                  className={`avatar ${
+                    door === "granted"
+                      ? "avatar-ok"
+                      : door === "denied"
+                        ? "avatar-no"
+                        : ""
+                  }`}
+                >
+                  {doorInitial}
+                </span>
+                <div>
+                  <div className="stream-hud-name">{doorName}</div>
+                  <div className="stream-hud-meta">{doorLabel}</div>
+                </div>
+              </div>
+            )}
+
+            {streamFailed && (
+              <div className="stream-placeholder" role="status">
+                <span className="stream-placeholder-icon">
+                  <IconVideoOff />
+                </span>
+                <strong>Aucun signal vidéo</strong>
+                <span>
+                  Vérifiez que la caméra et l&apos;API sont accessibles.
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="stream-wrap">
-          <img
-            ref={imgRef}
-            key={streamKey}
-            src={streamUrl}
-            alt="Flux caméra avec détection"
-            className="stream"
-            style={{ visibility: streamFailed ? "hidden" : "visible" }}
-            onError={() => setStreamFailed(true)}
-          />
-
-          {!streamFailed && <div className="stream-overlay" aria-hidden />}
-
-          {streamFailed && (
-            <div className="stream-placeholder" role="status">
-              <span className="stream-placeholder-icon">
-                <IconVideoOff />
-              </span>
-              <strong>Aucun signal vidéo</strong>
-              <span>
-                Vérifiez que la caméra et l&apos;API sont accessibles.
-              </span>
-            </div>
-          )}
+        <div className="card">
+          <div className="card-title">Décision</div>
+          <div className={`door door-${door}`} role="status">
+            <span className="door-badge">{doorInitial}</span>
+            <span className="door-label">{doorLabel}</span>
+            <span className="door-name">{doorName}</span>
+            <span className="door-meta">
+              {latest && door !== "idle" ? (
+                <>
+                  {new Date(latest.timestamp).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  })}
+                  {typeof latest.confidence === "number"
+                    ? ` · score ${latest.confidence.toFixed(2)}`
+                    : null}
+                </>
+              ) : latest ? (
+                <>Dernier passage : {latest.matched ? latest.full_name : "inconnu"}</>
+              ) : (
+                "En attente d un visage"
+              )}
+            </span>
+          </div>
         </div>
       </section>
 
@@ -179,7 +271,7 @@ export default function DashboardPage() {
             ))}
           </div>
         ) : logs.length === 0 ? (
-          <div className="empty">Aucun accès enregistré</div>
+          <div className="empty">Aucun accès enregistré - enrôle une personne pour commencer.</div>
         ) : (
           <ul className="log-list">
             {logs.map((log) => (
@@ -199,12 +291,16 @@ export default function DashboardPage() {
                   </span>
                   <span className="log-sub">
                     {log.matched ? "Accès autorisé" : "Accès refusé"}
+                    {typeof log.confidence === "number"
+                      ? ` · ${log.confidence.toFixed(2)}`
+                      : ""}
                   </span>
                 </div>
                 <time className="log-time">
                   {new Date(log.timestamp).toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
+                    second: "2-digit",
                   })}
                 </time>
               </li>
@@ -214,7 +310,10 @@ export default function DashboardPage() {
       </section>
 
       <footer className="dash-footer">
-        Mise à jour automatique toutes les 5 s
+        Mise à jour toutes les {POLL_MS / 1000} s
+        {health
+          ? ` · seuil ${health.matcher_threshold.toFixed(2)}`
+          : null}
       </footer>
     </AppShell>
   );

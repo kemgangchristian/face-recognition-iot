@@ -32,7 +32,7 @@ export default function LogsPage() {
 
   useEffect(() => {
     loadData();
-    const id = setInterval(loadData, 10000);
+    const id = setInterval(loadData, 2000);
     return () => clearInterval(id);
   }, []);
 

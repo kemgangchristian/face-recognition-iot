@@ -1,64 +1,60 @@
-# Face Recognition IoT — Système de reconnaissance faciale multi-sites
+# Face Recognition IoT
 
-Système de reconnaissance faciale edge, déployé sur Raspberry Pi (module caméra CSI), avec traitement temps réel en local (CPU) et supervision centralisée multi-sites via un backend PostgreSQL.
+Reconnaissance faciale sur Raspberry Pi (camera CSI), decision locale, dashboard de supervision.
 
-## Architecture (vue d'ensemble)
-```mermaid
-flowchart LR
-    subgraph EDGE[" RASPBERRY PI (edge)"]
-        direction TB
-        A[Caméra CSI] --> B[Détection visage]
-        B --> C[Alignement]
-        C --> D[Embedding CPU]
-        D --> E[Matching SQLite/FAISS]
-        E --> F[Décision + log local]
-        G[API locale FastAPI]
-    end
+## Production
 
-    subgraph CENTRAL[" BACKEND CENTRAL"]
-        direction TB
-        H[(PostgreSQL)]
-        I[API centrale]
-        J[Dashboard supervision]
-        H --> I
-        I --> J
-    end
+Modele : YuNet (detection) + SFace (embedding 128-d). Un seul seuil cosinus et une marge 1er/2e score. Enrolement : une photo sans masque. Vivacite par parallaxe activee.
 
-    F -- "MQTT / HTTPS (sync events)" --> I
-    I -- "propagation identités" --> E
+Ne pas remplacer SFace par un autre embedder. Ne pas utiliser de classificateur de masque pour changer de seuil.
+
+Commandes (`make help` pour la liste) :
+
+```bash
+make test
+make run-pi          # Pi : conteneur + volume (garde la base)
+make stop            # avant capture CSI / reset
+make start
+make capture         # photos genuine + imposteurs (webcam ; sur Pi: CSI liberee)
+make calibrate-docker
+make reset-db-docker # site vide, puis reenrôler
 ```
 
+Sur le Pi, une fois le service allume : enrôler via `http://<ip>:8000` (1 photo sans masque), arreter l'API, prendre les JPEG de calibration avec la CSI, `make calibrate-docker`, verifier un autorise et un inconnu.
 
-**Principe clé** : chaque Raspberry Pi fonctionne de façon autonome (base locale SQLite, décision locale, aucune dépendance réseau pour reconnaître un visage). Le backend central sert à la supervision, l'audit et la propagation des identités entre sites — jamais au traitement temps réel.
+La porte est stricte : un inconnu ne doit pas passer. Un autorise (surtout masque) peut etre refuse. Pas de cible 99 % d'acceptation.
 
-## Stack technique
+## Architecture
 
-| Brique                    | Choix                      | Justification résumée                                             |
-|---------------------------|----------------------------|-------------------------------------------------------------------|
-| Détection de visage       | YuNet (OpenCV)             | Léger, natif OpenCV, bon compromis précision/vitesse sur CPU ARM  |
-| Extraction d'embedding    | MobileFaceNet              | Précision proche d'ArcFace classique pour un poids ~4 Mo          |
-| Moteur d'inférence        | TensorFlow Lite            | Support natif ARM64, quantification INT8                          |
-| Recherche vectorielle     | FAISS (CPU)                | Suffisant en local, pas de serveur vector DB nécessaire sur le Pi |
-| Stockage edge             | SQLite (chiffré)           | Zéro dépendance serveur, fonctionnement hors-ligne                |
-| Stockage central          | PostgreSQL                 | Multi-sites, requêtes relationnelles, supervision                 |
-| API edge                  | FastAPI                    | Léger, async, documentation OpenAPI automatique                   |
-| Messagerie événementielle | MQTT                       | Standard IoT, léger, adapté au temps réel                         |
-| CI/CD                     | Jenkins                    | Pipelines séparés edge (ARM64) / backend (x86_64)                 |
-| Conteneurisation          | Docker (buildx multi-arch) | Reproductibilité, portabilité                                     |
+```mermaid
+flowchart LR
+    subgraph EDGE["Raspberry Pi"]
+        A[Camera CSI] --> B[YuNet]
+        B --> C[SFace]
+        C --> D[Matching SQLite]
+        D --> E[Porte + logs]
+        F[API FastAPI]
+    end
+    subgraph CENTRAL["Backend"]
+        H[(PostgreSQL)]
+        I[API]
+        J[Dashboard]
+    end
+    E -- MQTT --> I
+```
 
-## Conventions de nommage
+Chaque Pi reconnait hors-ligne (SQLite). Le backend sert l'audit et, plus tard, plusieurs sites.
 
-- Fichiers Python : `snake_case.py`
-- Classes : `PascalCase`
-- Fonctions/variables : `snake_case`
-- Constantes : `UPPER_SNAKE_CASE`
-- Branches Git : `feature/epic-<n>-<description-courte>`
-- Commits : [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `test:`, `chore:`)
+## Stack
 
-## Méthodologie
+| Brique | Choix |
+|---|---|
+| Detection | YuNet (OpenCV) |
+| Embedding | SFace 128-d (OpenCV Zoo) |
+| Stockage edge | SQLite, embeddings chiffres |
+| API | FastAPI |
+| Dashboard | Next.js (export statique servi par FastAPI) |
 
-Développement Agile/Scrum, sprints de 2 semaines, découpage Epic → User Story → tâche technique.
+## Nommage
 
-## État du projet
-
-En cours de développement — Setup initial.
+Fichiers Python : `snake_case.py`. Classes : `PascalCase`. Commits : Conventional Commits.

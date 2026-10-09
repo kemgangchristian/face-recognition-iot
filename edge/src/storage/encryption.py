@@ -1,14 +1,9 @@
 """
-Chiffrement au repos des embeddings biométriques (AES via Fernet).
-Story 3.4 — Epic 3.
+Chiffrement AES (Fernet) des embeddings au repos.
 
-ATTENTION : le fichier de clé (storage_data/encryption.key) est critique.
-S'il est perdu, toutes les données chiffrées deviennent illisibles.
-S'il est compromis, toutes les données chiffrées sont compromises.
-Pour une V1 edge, un fichier local à permissions restreintes est acceptable
-(le Pi est supposé physiquement sécurisé) ; une vraie mise en production
-devrait envisager un gestionnaire de secrets dédié (ex: HashiCorp Vault,
-AWS KMS) — noté comme amélioration future, pas nécessaire pour le MVP.
+La cle est un fichier a part (storage_data/encryption.key), pas dans SQLite.
+Si la cle est perdue, les embeddings sont illisibles. Si elle fuit, ils
+sont exposés. Permissions 0600 sur le Pi.
 """
 
 import os

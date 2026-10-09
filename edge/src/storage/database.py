@@ -1,11 +1,4 @@
-"""
-Connexion et initialisation de la base de données SQLite locale.
-Story 3.5 — Epic 3.
-
-Note : le chiffrement des données (Story 3.4) sera ajouté dans une étape
-dédiée suivante — volontairement séparé pour garder ce module simple et
-testable indépendamment.
-"""
+"""Connexion SQLite locale et creation du schema."""
 
 import sqlite3
 import os
@@ -58,7 +51,7 @@ class Database:
         self._connection.commit()
 
     def get_connection(self) -> sqlite3.Connection:
-        """Retourne la connexion active, pour usage par d'autres modules (Story 3.1+)."""
+        """Connexion SQLite ouverte (apres connect())."""
         if self._connection is None:
             raise RuntimeError("Base non connectée. Appelle connect() d'abord.")
         return self._connection

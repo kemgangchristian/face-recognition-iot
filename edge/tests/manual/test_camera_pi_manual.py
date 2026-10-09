@@ -26,7 +26,7 @@ def main():
         frame = camera.read_frame()
         output_path = "test_capture_pi.jpg"
         cv2.imwrite(output_path, frame)
-        print(f"✅ Frame capturée et sauvegardée : {output_path}")
+        print(f"Frame capturee : {output_path}")
         print(f"Dimensions : {frame.shape}")
     finally:
         camera.stop()

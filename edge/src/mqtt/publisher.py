@@ -1,7 +1,4 @@
-"""
-Publication d'événements de reconnaissance via MQTT.
-Story 5.2 — Epic 5.
-"""
+"""Publication MQTT optionnelle des evenements de verification."""
 
 import json
 from datetime import datetime, timezone
@@ -18,7 +15,7 @@ class EventPublisher:
             broker_host: adresse du broker MQTT.
             broker_port: port du broker (1883 = standard non chiffré).
             site_id: identifiant du site, utilisé dans le topic pour la
-                     future architecture multi-sites (Epic 7).
+                     supervision distante.
         """
         self.site_id = site_id
         self.topic = f"face-recognition/{site_id}/events"

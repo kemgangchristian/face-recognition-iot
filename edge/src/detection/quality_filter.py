@@ -1,7 +1,4 @@
-"""
-Filtrage qualité des visages détectés (taille, flou, confiance).
-Story 1.3 — Epic 1.
-"""
+"""Ecarte les visages trop petits, trop flous ou trop peu confiants."""
 
 import cv2
 

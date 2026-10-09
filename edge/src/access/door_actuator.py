@@ -12,10 +12,8 @@ Principes de sécurité :
     reverrouille seule, même si le service plante juste après. Un nouvel
     accès pendant la temporisation la repousse, sans jamais la cumuler.
 
-⚠️ La partie GPIO n'a pas pu être testée sur du vrai matériel (voir les tests
-avec périphérique simulé). À valider avec un relais réel avant toute
-utilisation sur une vraie porte, et ne JAMAIS faire dépendre la sécurité
-physique (issue de secours, incendie) de ce seul composant logiciel.
+La commande GPIO n'a ete testee que sur un relais simule. A valider sur
+le materiel reel. Ne pas faire dependre une issue de secours de ce module.
 """
 
 import os

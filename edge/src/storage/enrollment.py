@@ -1,7 +1,4 @@
-"""
-Enrôlement d'identités : orchestration embedding + chiffrement + stockage.
-Story 3.1 — Epic 3.
-"""
+"""Enrolement : identite en clair, embedding chiffre en base."""
 
 import numpy as np
 from .database import Database
@@ -63,7 +60,7 @@ class EnrollmentService:
     def get_all_embeddings(self) -> list[dict]:
         """
         Récupère tous les embeddings de la base, déchiffrés, avec l'identité associée.
-        Utilisé par le module de matching (Epic 4).
+        Utilise par FaceMatcher."""
 
         Returns:
             list[dict]: chaque entrée contient "identity_id", "full_name", "vector"
@@ -138,7 +135,7 @@ class EnrollmentService:
         Récupère l'historique des tentatives de reconnaissance, du plus récent
         au plus ancien. Utilise un LEFT JOIN (pas INNER JOIN) pour continuer
         à afficher les logs même si l'identité associée a été supprimée
-        depuis (droit à l'effacement RGPD, Story 3.3) — le nom apparaît
+        depuis (droit a l'effacement) — le nom apparait
         alors comme None plutôt que de faire disparaître le log d'audit.
 
         Args:
@@ -177,7 +174,7 @@ class EnrollmentService:
     def purge_old_logs(self, retention_days: int = 90) -> int:
         """
         Supprime les logs d'accès plus anciens que la durée de rétention.
-        Story 9.1 — Epic 9 (conformité RGPD, minimisation des données).
+        Minimisation des donnees : les logs ne sont pas conserves indefiniment.
 
         Args:
             retention_days: nombre de jours au-delà desquels un log est purgé.

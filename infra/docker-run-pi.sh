@@ -14,4 +14,5 @@ docker run -d \
   --privileged \
   -p 8000:8000 \
   -v /run/udev:/run/udev:ro \
+  -v face-recognition-data:/app/storage_data \
   face-recognition-edge:latest

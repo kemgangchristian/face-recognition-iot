@@ -22,7 +22,7 @@ Mesures de référence (modèle géométrique 3D, voir tests/test_liveness.py) :
 Seuil par défaut 0.12. À RECALIBRER sur la caméra réelle : l'étiquette
 affichée dans le flux montre la valeur mesurée (« Tournez la tete (0.05/0.12) »).
 
-⚠️ LIMITES ASSUMÉES -- à ne pas perdre de vue :
+Limites :
   - Ce module protège contre les supports PLANS. Un REJEU VIDÉO (vidéo d'une
     personne qui tourne la tête, affichée sur un écran) montre un vrai
     mouvement 3D filmé : il passerait la parallaxe. Aucune méthode RGB seule

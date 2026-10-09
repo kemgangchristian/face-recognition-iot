@@ -26,7 +26,7 @@ class FakeEmbedder:
     """Doublure de test simulant FaceEmbedder. Le score de similarité est
     calculé de façon simple et prévisible : identique = 1.0, sinon 0.0 —
     suffisant pour tester la LOGIQUE de FaceMatcher, pas la qualité réelle
-    du modèle SFace (déjà validée empiriquement ailleurs, Story 2.3)."""
+    du modele SFace."""
 
     def compare(self, embedding_a, embedding_b):
         return 1.0 if np.array_equal(embedding_a, embedding_b) else 0.0
@@ -92,4 +92,47 @@ def test_returns_best_match_among_multiple():
 
     assert result["matched"] is True
     assert result["full_name"] == "Bob"
+
+
+class RankEmbedder:
+    """Scores fixes par identité, pour tester la marge 1er/2e."""
+
+    def __init__(self, scores_by_id: dict):
+        self.scores_by_id = scores_by_id
+
+    def compare(self, query_embedding, gallery_embedding):
+        key = tuple(gallery_embedding.tolist())
+        return self.scores_by_id[key]
+
+
+def test_min_margin_rejects_when_top_two_are_too_close():
+    alice = np.array([1.0, 0.0], dtype=np.float32)
+    bob = np.array([0.0, 1.0], dtype=np.float32)
+    fake_service = FakeEnrollmentService(embeddings_data=[
+        {"identity_id": 1, "full_name": "Alice", "vector": alice},
+        {"identity_id": 2, "full_name": "Bob", "vector": bob},
+    ])
+    embedder = RankEmbedder({tuple(alice.tolist()): 0.91, tuple(bob.tolist()): 0.89})
+    matcher = FaceMatcher(fake_service, embedder, threshold=0.5, min_margin=0.05)
+
+    result = matcher.match(np.array([1.0, 1.0], dtype=np.float32))
+
+    assert result["matched"] is False
+    assert result["confidence"] == 0.91
+
+
+def test_min_margin_allows_clear_winner():
+    alice = np.array([1.0, 0.0], dtype=np.float32)
+    bob = np.array([0.0, 1.0], dtype=np.float32)
+    fake_service = FakeEnrollmentService(embeddings_data=[
+        {"identity_id": 1, "full_name": "Alice", "vector": alice},
+        {"identity_id": 2, "full_name": "Bob", "vector": bob},
+    ])
+    embedder = RankEmbedder({tuple(alice.tolist()): 0.91, tuple(bob.tolist()): 0.70})
+    matcher = FaceMatcher(fake_service, embedder, threshold=0.5, min_margin=0.05)
+
+    result = matcher.match(np.array([1.0, 1.0], dtype=np.float32))
+
+    assert result["matched"] is True
+    assert result["full_name"] == "Alice"
     

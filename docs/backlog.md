@@ -63,7 +63,7 @@ Si le projet est finalement **mono-site sans backend central**, l'Epic 7 (Backen
 | # | User Story | Critères d'acceptation |
 |---|---|---|
 | 3.1 | En tant qu'administrateur, je veux enrôler une nouvelle personne (capture + embedding + métadonnées) afin de l'ajouter à la base de reconnaissance | Fonction d'enrôlement testée, embedding + identité stockés en SQLite |
-| 3.2 | En tant qu'administrateur, je veux capturer plusieurs poses lors de l'enrôlement afin d'améliorer la robustesse de la reconnaissance | Minimum 3-5 captures par personne, embeddings moyennés ou stockés individuellement |
+| 3.2 | En tant qu'administrateur, je veux enrôler une personne avec **une seule photo** afin de limiter la friction | Une capture suffit ; le schéma accepte d'autres poses plus tard si besoin |
 | 3.3 | En tant qu'administrateur, je veux supprimer une identité de la base afin de respecter le droit à l'effacement (RGPD) | Suppression effective des embeddings + logs associés, testée |
 | 3.4 | En tant que système, je veux chiffrer les embeddings stockés localement afin de protéger les données biométriques | Chiffrement au repos (ex: SQLCipher ou chiffrement applicatif) validé |
 | 3.5 | En tant que dev, je veux structurer le schéma SQLite (identités, embeddings, logs) afin de garantir cohérence et évolutivité | Schéma documenté, migrations versionnées |

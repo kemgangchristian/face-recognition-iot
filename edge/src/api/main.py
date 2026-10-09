@@ -1,6 +1,5 @@
 """
-API locale FastAPI — enrôlement, vérification, dashboard, streaming.
-Story 5.1 — Epic 5.
+API locale FastAPI : enrolement, verification, dashboard, streaming camera.
 """
 
 import sys
@@ -26,7 +25,7 @@ from detection.face_detector import FaceDetector
 from detection.face_readiness import FaceReadinessAssessor
 from detection.liveness import LivenessChecker
 from detection.quality_filter import QualityFilter
-from recognition.face_embedder import FaceEmbedder
+from recognition.face_embedder import build_embedder
 from storage.database import Database
 from storage.encryption import EncryptionManager
 from storage.enrollment import EnrollmentService
@@ -56,7 +55,7 @@ camera = Camera()
 camera.start()
 detector = FaceDetector()
 quality_filter = QualityFilter()
-embedder = FaceEmbedder()
+embedder = build_embedder()
 readiness = FaceReadinessAssessor(detector, quality_filter)
 
 db = Database()
@@ -82,11 +81,14 @@ def _load_calibrated_thresholds() -> dict:
             data = json.load(f)
         print(f"Seuils calibrés chargés depuis {path} "
               f"(statut : {data.get('status', 'inconnu')}).")
-        return {"threshold": data["threshold"], "threshold_low": data.get("threshold_low")}
-    print(f"⚠️ Aucun fichier de calibration trouvé ({path}). "
-          f"Seuil par défaut (0.5) utilisé -- lancer "
-          f"scripts/calibrate_threshold.py dès que possible.")
-    return {"threshold": 0.5, "threshold_low": None}
+        return {
+            "threshold": data["threshold"],
+            "threshold_low": data.get("threshold_low"),
+            "min_margin": float(data.get("min_margin", 0.0)),
+        }
+    print(f"Aucun fichier de calibration ({path}). "
+          f"Seuil par defaut 0.5. Lancer scripts/calibrate_threshold.py.")
+    return {"threshold": 0.5, "threshold_low": None, "min_margin": 0.0}
 
 
 def _build_liveness() -> LivenessChecker:
@@ -101,8 +103,8 @@ def _build_liveness() -> LivenessChecker:
         max_spectral_peak=float(peak) if peak else None,
     )
     if liveness.mode != "parallax":
-        print(f"⚠️ LIVENESS_MODE={liveness.mode} : protection anti-photo AFFAIBLIE ou "
-              f"désactivée. À réserver aux démonstrations, jamais à une porte réelle.")
+        print(f"LIVENESS_MODE={liveness.mode} : protection anti-photo affaiblie. "
+              "A reserver aux demonstrations, pas a une porte reelle.")
     return liveness
 
 
@@ -134,8 +136,7 @@ RETENTION_DAYS = int(os.environ.get("ACCESS_LOGS_RETENTION_DAYS", "90"))
 
 
 async def periodic_purge():
-    """Tâche de fond : purge quotidienne des logs d'accès expirés.
-    Story 9.1 — conformité RGPD (minimisation des données)."""
+    """Purge quotidienne des logs d'acces plus anciens que RETENTION_DAYS."""
     while True:
         with db_lock:
             deleted = enrollment.purge_old_logs(RETENTION_DAYS)
@@ -247,7 +248,7 @@ def enroll(
     _: None = Security(verify_session_or_api_key),
 ):
     """
-    Enrôle une nouvelle identité à partir d'une image uploadée.
+    Enrôle une nouvelle identité à partir d'**une seule** image uploadée.
 
     La même exigence de qualité que l'indicateur du dashboard est
     revérifiée ici côté serveur : l'interface ne peut pas être contournée.
@@ -294,9 +295,9 @@ def verify(
     ponctuelle, à la demande — par opposition à l'identification continue
     du contrôleur d'accès, voir access/access_controller.py).
 
-    ⚠️ Cet endpoint identifie, il N'OUVRE PAS la porte et ne vérifie pas la
-    vivacité (une image seule n'en porte pas la preuve). Seul le contrôleur
-    d'accès actionne la porte.
+    Cet endpoint identifie. Il n'ouvre pas la porte et ne verifie pas la
+    vivacite (une image seule n'en porte pas la preuve). Seul le controleur
+    d'acces actionne la porte.
 
     Args:
         image: fichier image (JPEG/PNG) contenant un visage exploitable.
@@ -370,9 +371,8 @@ def delete_identity_endpoint(
     _: None = Security(verify_session_or_api_key),
 ):
     """
-    Supprime une identité et tous ses embeddings associés (droit à
-    l'effacement RGPD, Story 3.3, exposé ici via l'API pour permettre la
-    suppression directement depuis le dashboard).
+    Supprime une identite et ses embeddings (droit a l'effacement).
+    Expose depuis le dashboard.
     """
     with db_lock:
         deleted = enrollment.delete_identity(identity_id)

@@ -1,7 +1,4 @@
-"""
-Module de détection de visage via YuNet (OpenCV).
-Story 1.2 - Epic 1.
-"""
+"""Detection de visages avec YuNet (OpenCV DNN)."""
 
 import os
 import threading

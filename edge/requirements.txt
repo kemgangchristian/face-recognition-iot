@@ -1,14 +1,10 @@
-# =============================================================================
-# Dépendances Python — Module Edge
-# =============================================================================
-
-# Epic 1 : capture + détection
+# Capture + detection + embedding (OpenCV)
 opencv-python==5.0.0.93
 
-# Epic 3 : algorithme de chiffrement
+# Chiffrement des embeddings
 cryptography==50.0.1
 
-# Epic 5 : API REST
+# API REST
 fastapi==0.141.1
 uvicorn==0.52.4
 python-multipart==0.0.12

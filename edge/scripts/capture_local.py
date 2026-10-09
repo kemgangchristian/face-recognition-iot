@@ -3,9 +3,8 @@
 Capture guidée d'un jeu de test de calibration depuis la webcam locale
 (validation du flux AVANT déploiement sur le Pi).
 
-⚠️ La webcam du Mac n'a pas le même capteur ni la même optique que la
-caméra du Pi : les seuils obtenus ici ne servent qu'à valider le flux. La
-vraie calibration doit être refaite avec des photos prises par le Pi.
+La webcam d'un laptop n'a pas le meme capteur que le Pi. Les seuils
+obtenus ici ne valident que le flux. Recalibrer sur le Pi.
 
 Usage (depuis edge/) :
     python -m scripts.capture_local

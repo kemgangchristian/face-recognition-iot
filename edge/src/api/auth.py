@@ -4,9 +4,7 @@ Authentification par clé API statique.
 Réservée aux clients machine-à-machine (scripts d'automatisation, tests,
 intégrations externes type Home Assistant). Le dashboard web utilise un
 mécanisme séparé, par cookie de session — voir `session_auth.py` — pour
-ne jamais exposer de secret dans le JavaScript envoyé au navigateur.
-
-Story initiale : Epic 9 (sécurisation de l'API avant tout usage commercial).
+ne jamais exposer de secret dans le JavaScript envoye au navigateur.
 """
 
 import os

@@ -290,9 +290,9 @@ export default function EnrollPage() {
       </section>
 
       <footer className="dash-footer">
-        Le bouton s&apos;active quand une seule personne est bien centrée et
-        nette face à la caméra. Aucune image n&apos;est enregistrée : seule
-        l&apos;empreinte numérique du visage l&apos;est.
+        Une seule photo suffit. Le bouton s&apos;active quand une personne
+        est bien centrée et nette, sans masque. Aucune image n&apos;est
+        enregistrée : seule l&apos;empreinte numérique du visage l&apos;est.
       </footer>
     </AppShell>
   );

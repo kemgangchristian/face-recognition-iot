@@ -1,7 +1,4 @@
-"""
-Benchmark du pipeline complet sur Raspberry Pi réel.
-Story 1.4 — Epic 1 / Story 2.5 — Epic 2.
-"""
+"""Benchmark du pipeline complet sur Raspberry Pi."""
 
 import sys
 import os

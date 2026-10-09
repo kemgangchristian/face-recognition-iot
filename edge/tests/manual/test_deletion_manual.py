@@ -1,5 +1,5 @@
 """
-Script de test MANUEL de la suppression d'identité (Story 3.3, RGPD).
+Script de test manuel de la suppression d'identite (RGPD).
 Vérifie que la suppression est bien en cascade sur les embeddings.
 
 Usage : python edge/tests/test_deletion_manual.py

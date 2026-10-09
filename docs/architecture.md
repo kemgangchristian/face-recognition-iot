@@ -27,21 +27,11 @@ permissive, et est nativement supporté par OpenCV via `cv2.FaceRecognizerSF` �
 conçu par l'équipe OpenCV pour fonctionner directement avec YuNet.
 
 ### Alignement pour l'embedding — `cv2.FaceRecognizerSF.alignCrop()`
-Le module maison `edge/src/recognition/face_aligner.py` (Story 2.2) utilise des
-positions de référence génériques de type ArcFace/InsightFace, adaptées à
-MobileFaceNet — pas garanties compatibles avec le préprocessing attendu par SFace.
-Pour l'extraction d'embedding réelle, on utilise donc `alignCrop()`, natif à
-`FaceRecognizerSF`, qui garantit un alignement exactement conforme à
-l'entraînement du modèle. `face_aligner.py` est conservé comme utilitaire
-générique et réutilisable (déjà testé visuellement), au cas où un autre modèle
-d'embedding serait adopté plus tard.
+SFace attend le recadrage natif `alignCrop()`.
 
-### Moteur d'inférence — TensorFlow Lite / OpenCV DNN
-Pour YuNet et SFace, l'inférence passe directement par le module DNN natif
-d'OpenCV (`cv2.FaceDetectorYN`, `cv2.FaceRecognizerSF`) — pas besoin de
-TensorFlow Lite ou ONNX Runtime séparés pour ces deux modèles spécifiquement.
-TensorFlow Lite reste l'option de référence si un futur modèle (ex: modèle de
-classification additionnel) nécessite un moteur d'inférence dédié.
+### Moteur d'inférence — OpenCV DNN
+YuNet et SFace passent par le module DNN d'OpenCV (`cv2.FaceDetectorYN`,
+`cv2.FaceRecognizerSF`). Pas d'ONNX Runtime ni de TensorFlow Lite.
 
 ### Stockage edge — SQLite (chiffré)
 Alternative écartée : PostgreSQL en local sur le Pi (inutile : consomme des
@@ -85,7 +75,7 @@ milliers d'identités enrôlées.
 | Sprint 3-4 | Seuil de netteté (QualityFilter) fixé à 5.0 sur webcam Mac | Valeur empirique mesurée en conditions réelles (webcam laptop compressée) ; à recalibrer sur caméra CSI Pi en Story 1.4, capteur/pipeline différents |
 | Sprint 5-6 | Léger tremblement visuel du crop aligné accepté sans lissage temporel | Sans impact sur la qualité d'embedding (extraction frame par frame indépendante) ; lissage temporel des landmarks noté comme amélioration facultative future |
 | Sprint 5-6 | MobileFaceNet (InsightFace) écarté, SFace adopté | Licence InsightFace = recherche non-commerciale uniquement (bloquant pour usage professionnel). SFace = même dépôt officiel qu'YuNet (OpenCV Zoo), licence Apache-2.0 permissive |
-| Sprint 5-6 | Alignement pour l'embedding via `cv2.FaceRecognizerSF.alignCrop()` natif, pas via `FaceAligner` maison | Garantit la compatibilité exacte avec le préprocessing attendu par SFace ; `FaceAligner` conservé comme utilitaire générique réutilisable |
+| Sprint 5-6 | Alignement pour l'embedding via `cv2.FaceRecognizerSF.alignCrop()` natif | Compatibilité avec le préprocessing attendu par SFace |
 | Sprint 5-6 | Validation empirique SFace : score ~0.8-1.0 même personne, ~0.2-0.6 personnes différentes (webcam Mac) | Bonne séparation, confirme la fiabilité du modèle ; seuil de décision définitif à calibrer rigoureusement en Story 4.3 avec un vrai jeu de test |
 | Sprint 9 | Connexion SQLite partagée protégée par threading.Lock dans l'API | FastAPI exécute chaque requête dans un thread du pool ; SQLite refuse par défaut le partage inter-thread d'une connexion. Solution pragmatique adaptée au faible volume edge ; une architecture haute-concurrence utiliserait plutôt un pool de connexions |
 | Sprint 10 | Pipeline Jenkins fonctionnel : Docker agent (python:3.11-slim-bookworm), 12 tests automatisés passent | Jenkins existant réutilisé (multi-projets) ; job dédié `face-recognition-iot` créé ; correction format version opencv-python (5.0.0 -> 5.0.0.93) |

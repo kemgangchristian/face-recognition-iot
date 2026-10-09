@@ -1,14 +1,8 @@
 """
-Module de capture vidéo.
-Story 1.1 — Epic 1. Optimisé en Story 1.4 pour la latence Raspberry Pi.
+Capture video.
 
-Deux implémentations selon la plateforme :
-- macOS/Linux desktop : cv2.VideoCapture standard (webcam).
-- Raspberry Pi (caméra CSI) : flux vidéo continu via rpicam-vid, lu par un
-  thread d'arrière-plan. Remplace l'approche initiale (un rpicam-still par
-  frame, Story 1.4) qui coûtait ~1065ms/frame à cause de la réinitialisation
-  du capteur à chaque appel. Le flux continu ne paie ce coût qu'une seule
-  fois au démarrage, ramenant read_frame() à quelques millisecondes.
+Sur Mac / PC : OpenCV VideoCapture.
+Sur Raspberry Pi : rpicam-vid en continu (un still par frame etait trop lent).
 """
 
 import platform

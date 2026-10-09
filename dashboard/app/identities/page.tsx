@@ -119,7 +119,7 @@ export default function IdentitiesPage() {
                         ).toLocaleDateString()}`
                       : ""}
                     {typeof identity.pose_count === "number"
-                      ? ` • ${identity.pose_count} pose${
+                      ? ` • ${identity.pose_count} photo${
                           identity.pose_count > 1 ? "s" : ""
                         }`
                       : ""}

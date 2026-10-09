@@ -1,6 +1,5 @@
 """
-Monitoring CPU/RAM/température en fonctionnement continu.
-Story 6.1 — Epic 6.
+Monitoring CPU/RAM/temperature en fonctionnement continu.
 
 Fait tourner le pipeline de reconnaissance en boucle pendant une durée
 donnée, en échantillonnant les ressources système à intervalle régulier.

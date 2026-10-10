@@ -335,21 +335,6 @@ def access_live(_: None = Security(verify_session_or_api_key)):
     return access_controller.current_view()
 
 
-@app.get("/access/snapshot")
-def access_snapshot(_: None = Security(verify_session_or_api_key)):
-    """Dernière image annotée (cadres + libellés). Vide tant que le flux
-    n'a pas de spectateur : l'encodage JPEG ne tourne que dans ce cas."""
-    access_controller.touch_viewer()
-    jpeg = access_controller.latest_jpeg()
-    if jpeg is None:
-        raise HTTPException(status_code=404, detail="Aucune image pour le moment.")
-    return Response(
-        content=jpeg,
-        media_type="image/jpeg",
-        headers={"Cache-Control": "no-store"},
-    )
-
-
 # --- Journal d'accès --------------------------------------------------------
 
 @app.get("/logs")

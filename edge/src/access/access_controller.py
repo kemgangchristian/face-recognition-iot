@@ -464,11 +464,6 @@ class AccessController:
             "face_count": len(faces),
         }
 
-    def latest_jpeg(self) -> Optional[bytes]:
-        """Dernière image annotée, ou None si personne ne regarde le flux."""
-        with self._frame_cond:
-            return self._frame_jpeg
-
     def status(self) -> dict:
         """Instantané pour /health : permet de superviser à distance que la
         boucle de contrôle tourne vraiment (et pas seulement l'API)."""

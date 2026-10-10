@@ -17,7 +17,6 @@ import {
   getHealth,
   getLiveAccess,
   getStreamUrl,
-  getSnapshotUrl,
   type Stats,
   type AccessLog,
   type Health,
@@ -33,8 +32,6 @@ export default function DashboardPage() {
   const [logs, setLogs] = useState<AccessLog[]>([]);
   const [health, setHealth] = useState<Health | null>(null);
   const [live, setLive] = useState<LiveAccess | null>(null);
-  const [snapTick, setSnapTick] = useState(0);
-  const [snapFailed, setSnapFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -81,7 +78,6 @@ export default function DashboardPage() {
         const data = await getLiveAccess();
         if (cancelled) return;
         setLive(data);
-        setSnapTick((n) => n + 1);
       } catch {
         if (!cancelled) setLive(null);
       }
@@ -128,38 +124,31 @@ export default function DashboardPage() {
 
   let doorLabel: string;
   let doorName: string;
-  let doorInitial: string;
   let doorMeta: string;
   switch (door) {
     case "granted":
-      doorLabel = "Autorise";
-      doorName = live?.name || "Identite reconnue";
-      doorInitial = (live?.name || "A").charAt(0).toUpperCase();
+      doorLabel = "Accès autorisé";
+      doorName = live?.name || "Identité reconnue";
       doorMeta =
         typeof live?.confidence === "number"
-          ? `score ${live.confidence.toFixed(2)}`
-          : (live?.label ?? "");
+          ? `Score ${live.confidence.toFixed(2)}`
+          : "";
       break;
     case "denied":
-      doorLabel = "Refuse";
+      doorLabel = "Accès refusé";
       doorName = "Inconnu";
-      doorInitial = "!";
-      doorMeta = live?.label ?? "Acces refuse";
+      doorMeta = "Ce visage n'est pas enrôlé.";
       break;
     case "pending":
-      doorLabel = "En cours";
+      doorLabel = "Vérification";
       doorName = live?.label ?? "Analyse en cours";
-      doorInitial = "…";
       doorMeta =
-        live && live.face_count > 1
-          ? `${live.face_count} visages`
-          : "Meme decision que le flux";
+        live && live.face_count > 1 ? `${live.face_count} visages` : "";
       break;
     case "idle":
-      doorLabel = "En attente";
-      doorName = "Personne devant la porte";
-      doorInitial = "·";
-      doorMeta = "En attente d un visage";
+      doorLabel = "Porte fermée";
+      doorName = "Aucun visage";
+      doorMeta = "La caméra surveille l'entrée.";
       break;
     default: {
       const _exhaustive: never = door;
@@ -199,28 +188,6 @@ export default function DashboardPage() {
               onError={() => setStreamFailed(true)}
             />
 
-            {!streamFailed && <div className="stream-overlay" aria-hidden />}
-
-            {!streamFailed && streamLoaded && (
-              <div className="stream-hud">
-                <span
-                  className={`avatar ${
-                    door === "granted"
-                      ? "avatar-ok"
-                      : door === "denied"
-                        ? "avatar-no"
-                        : ""
-                  }`}
-                >
-                  {doorInitial}
-                </span>
-                <div>
-                  <div className="stream-hud-name">{doorName}</div>
-                  <div className="stream-hud-meta">{doorLabel}</div>
-                </div>
-              </div>
-            )}
-
             {streamFailed && (
               <div className="stream-placeholder" role="status">
                 <span className="stream-placeholder-icon">
@@ -238,20 +205,9 @@ export default function DashboardPage() {
         <div className="card">
           <div className="card-title">Décision</div>
           <div className={`door door-${door}`} role="status">
-            {snapTick > 0 && (
-              <img
-                src={getSnapshotUrl(snapTick)}
-                alt="Image annotee de la decision en cours"
-                className="door-shot"
-                hidden={snapFailed}
-                onError={() => setSnapFailed(true)}
-                onLoad={() => setSnapFailed(false)}
-              />
-            )}
-            <span className="door-badge">{doorInitial}</span>
-            <span className="door-label">{doorLabel}</span>
-            <span className="door-name">{doorName}</span>
-            <span className="door-meta">{doorMeta}</span>
+            <p className="door-label">{doorLabel}</p>
+            <p className="door-name">{doorName}</p>
+            {doorMeta ? <p className="door-meta">{doorMeta}</p> : null}
           </div>
         </div>
       </section>

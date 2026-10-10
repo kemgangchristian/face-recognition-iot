@@ -131,10 +131,6 @@ export function getLiveAccess(): Promise<LiveAccess> {
   return apiFetch("/access/live");
 }
 
-export function getSnapshotUrl(tick: number): string {
-  return `${API_BASE_URL}/access/snapshot?t=${tick}`;
-}
-
 export function enrollIdentity(
   fullName: string,
   imageFile: File

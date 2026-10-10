@@ -380,10 +380,6 @@ const styles = `
     display: flex; align-items: center; justify-content: center;
   }
   .stream { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .stream-overlay {
-    position: absolute; inset: 0; pointer-events: none;
-    background: radial-gradient(120% 80% at 50% 0%, transparent 50%, rgba(0,0,0,.35));
-  }
   .stream-placeholder {
     position: absolute; inset: 0;
     display: flex; flex-direction: column;
@@ -638,89 +634,41 @@ const styles = `
   }
   .hero .card { margin-bottom: 0; height: 100%; display: flex; flex-direction: column; }
   .hero .stream-wrap { flex: 1; min-height: 280px; }
-  .stream-hud {
-    position: absolute; left: 10px; right: 10px; bottom: 10px;
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 12px;
-    border-radius: 12px;
-    background: rgba(10, 12, 16, 0.72);
-    color: #fff;
-    backdrop-filter: blur(10px);
-    pointer-events: none;
-  }
-  .stream-hud-name { font-size: 15px; font-weight: 650; letter-spacing: -0.02em; }
-  .stream-hud-meta { font-size: 11.5px; opacity: 0.8; }
 
   .door {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    text-align: center; gap: 10px; flex: 1; padding: 8px 8px 4px;
-    border-radius: 12px;
-    min-height: 280px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 6px;
+    min-height: 180px;
+    padding: 8px 4px 8px 16px;
+    border-left: 3px solid var(--border);
   }
-  .door-granted {
-    background: color-mix(in srgb, var(--green) 14%, var(--surface-2));
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 40%, transparent);
-  }
-  .door-denied {
-    background: color-mix(in srgb, var(--red) 14%, var(--surface-2));
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 40%, transparent);
-  }
-  .door-idle {
-    background: var(--surface-2);
-    box-shadow: inset 0 0 0 1px var(--border);
-  }
-  .door-pending {
-    background: color-mix(in srgb, #d97706 14%, var(--surface-2));
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, #d97706 40%, transparent);
-  }
-  .door-shot {
-    width: 100%;
-    height: 168px;
-    object-fit: cover;
-    border-radius: 10px;
-    background: #111;
-  }
-  .door-badge {
-    width: 88px; height: 88px; border-radius: 50%;
-    display: inline-flex; align-items: center; justify-content: center;
-    font-size: 32px; font-weight: 750;
-  }
-  .door-granted .door-badge {
-    color: var(--green);
-    background: color-mix(in srgb, var(--green) 18%, transparent);
-    box-shadow: 0 0 0 8px color-mix(in srgb, var(--green) 10%, transparent),
-                0 0 28px color-mix(in srgb, var(--green) 35%, transparent);
-  }
-  .door-denied .door-badge {
-    color: var(--red);
-    background: color-mix(in srgb, var(--red) 18%, transparent);
-    box-shadow: 0 0 0 8px color-mix(in srgb, var(--red) 10%, transparent),
-                0 0 28px color-mix(in srgb, var(--red) 35%, transparent);
-  }
-  .door-idle .door-badge {
-    color: var(--muted);
-    background: color-mix(in srgb, var(--muted) 12%, transparent);
-  }
-  .door-pending .door-badge {
-    color: #d97706;
-    background: color-mix(in srgb, #d97706 18%, transparent);
-    box-shadow: 0 0 0 8px color-mix(in srgb, #d97706 10%, transparent);
-  }
+  .door-granted { border-left-color: var(--green); }
+  .door-denied { border-left-color: var(--red); }
+  .door-pending { border-left-color: #b45309; }
+  .door p { margin: 0; }
   .door-label {
-    font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
-    text-transform: uppercase; color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
   }
   .door-granted .door-label { color: var(--green); }
   .door-denied .door-label { color: var(--red); }
-  .door-pending .door-label { color: #d97706; }
+  .door-pending .door-label { color: #b45309; }
   .door-name {
-    font-size: 22px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.15;
-    max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
   }
-  .door-granted .door-name { color: var(--green); }
-  .door-denied .door-name { color: var(--red); }
-  .door-pending .door-name { color: #d97706; font-size: 16px; }
-  .door-meta { font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+  .door-meta {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
 
   @media (max-width: 860px) {
     .hero { grid-template-columns: 1fr; }

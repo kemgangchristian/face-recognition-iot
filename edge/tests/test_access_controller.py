@@ -201,6 +201,17 @@ class Rig:
 
 # --- Accès accordé -----------------------------------------------------------
 
+def test_current_view_reports_the_grant_shown_on_the_stream():
+    rig = Rig()
+    assert rig.controller.current_view()["state"] == "idle"
+    rig.run_until_granted()
+    view = rig.controller.current_view()
+    assert view["state"] == "granted"
+    assert view["name"] == "Christian"
+    assert view["face_count"] == 1
+    assert view["confidence"] is not None
+
+
 def test_live_authorized_person_is_granted_and_the_door_opens_once():
     rig = Rig()
     last = rig.run(6)

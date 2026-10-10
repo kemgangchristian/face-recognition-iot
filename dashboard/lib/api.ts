@@ -83,6 +83,16 @@ export interface FaceStatus {
   reason: string;
 }
 
+export type LiveState = "idle" | "granted" | "denied" | "pending";
+
+export interface LiveAccess {
+  state: LiveState;
+  name: string | null;
+  confidence: number | null;
+  label: string | null;
+  face_count: number;
+}
+
 /* ---------- Authentification ---------- */
 
 export function login(password: string): Promise<{ authenticated: boolean }> {
@@ -115,6 +125,14 @@ export function getHealth(): Promise<Health> {
 
 export function getLogs(limit = 100): Promise<{ count: number; logs: AccessLog[] }> {
   return apiFetch(`/logs?limit=${limit}`);
+}
+
+export function getLiveAccess(): Promise<LiveAccess> {
+  return apiFetch("/access/live");
+}
+
+export function getSnapshotUrl(tick: number): string {
+  return `${API_BASE_URL}/access/snapshot?t=${tick}`;
 }
 
 export function enrollIdentity(

@@ -323,6 +323,33 @@ def verify(
     return result
 
 
+# --- Décision en direct (même état que les cadres du flux) ------------------
+
+@app.get("/access/live")
+def access_live(_: None = Security(verify_session_or_api_key)):
+    """État courant de la porte pour le panneau Décision.
+
+    Indépendant du journal : un accès affiché sur le flux l'est ici
+    dans la même seconde, sans attendre le délai de réserve des logs.
+    """
+    return access_controller.current_view()
+
+
+@app.get("/access/snapshot")
+def access_snapshot(_: None = Security(verify_session_or_api_key)):
+    """Dernière image annotée (cadres + libellés). Vide tant que le flux
+    n'a pas de spectateur : l'encodage JPEG ne tourne que dans ce cas."""
+    access_controller.touch_viewer()
+    jpeg = access_controller.latest_jpeg()
+    if jpeg is None:
+        raise HTTPException(status_code=404, detail="Aucune image pour le moment.")
+    return Response(
+        content=jpeg,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 # --- Journal d'accès --------------------------------------------------------
 
 @app.get("/logs")

@@ -124,6 +124,8 @@ class AccessController:
         self._frame_cond = threading.Condition()
         self._frame_seq = 0
         self._frame_jpeg: Optional[bytes] = None
+        self._live_faces: list = []
+        self._live_at = 0.0
 
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
@@ -194,9 +196,11 @@ class AccessController:
         self._release_vanished_tracks()
 
         results = []
+        live = []
         for track_id, face in tracked:
             self._known_tracks.add(track_id)
             state, color, label = self._evaluate_face(track_id, frame, face, now)
+            grant = self._granted.get(track_id) if state == "granted" else None
             results.append({
                 "track_id": track_id,
                 "bbox": face["bbox"],
@@ -204,6 +208,16 @@ class AccessController:
                 "color": color,
                 "label": label,
             })
+            live.append({
+                "state": state,
+                "label": label,
+                "name": None if grant is None else grant["full_name"],
+                "confidence": None if grant is None else round(float(grant["confidence"]), 2),
+            })
+
+        with self._frame_cond:
+            self._live_faces = live
+            self._live_at = now
 
         self._frames_processed += 1
         self._publish_view(frame, results, now)
@@ -405,6 +419,55 @@ class AccessController:
     # ------------------------------------------------------------------
     # Supervision
     # ------------------------------------------------------------------
+
+    def current_view(self) -> dict:
+        """Décision affichée à l'instant, la même que les cadres du flux.
+
+        Le journal d'audit a un délai de réserve et ne suit pas l'image.
+        Priorité si plusieurs visages : accès accordé, puis refus, puis
+        analyse en cours.
+        """
+        now = self._clock()
+        with self._frame_cond:
+            faces = list(self._live_faces)
+            seen = self._live_at
+        if not faces or seen == 0.0 or now - seen > 2.0:
+            return {
+                "state": "idle",
+                "name": None,
+                "confidence": None,
+                "label": None,
+                "face_count": 0,
+            }
+
+        order = ("granted", "unknown", "liveness", "second_factor", "pending", "quality")
+
+        def rank(face: dict) -> int:
+            try:
+                return order.index(face["state"])
+            except ValueError:
+                return len(order)
+
+        chosen = min(faces, key=rank)
+        raw = chosen["state"]
+        if raw == "granted":
+            ui = "granted"
+        elif raw == "unknown":
+            ui = "denied"
+        else:
+            ui = "pending"
+        return {
+            "state": ui,
+            "name": chosen["name"],
+            "confidence": chosen["confidence"],
+            "label": chosen["label"],
+            "face_count": len(faces),
+        }
+
+    def latest_jpeg(self) -> Optional[bytes]:
+        """Dernière image annotée, ou None si personne ne regarde le flux."""
+        with self._frame_cond:
+            return self._frame_jpeg
 
     def status(self) -> dict:
         """Instantané pour /health : permet de superviser à distance que la

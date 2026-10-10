@@ -15,29 +15,26 @@ import {
   getStats,
   getLogs,
   getHealth,
+  getLiveAccess,
   getStreamUrl,
+  getSnapshotUrl,
   type Stats,
   type AccessLog,
   type Health,
+  type LiveAccess,
+  type LiveState,
 } from "@/lib/api";
 
 const POLL_MS = 2000;
-const FRESH_MS = 45000;
-
-type DoorState = "idle" | "granted" | "denied";
-
-function doorStateFromLog(log: AccessLog | undefined, now: number): DoorState {
-  if (!log) return "idle";
-  const age = now - new Date(log.timestamp).getTime();
-  if (Number.isNaN(age) || age > FRESH_MS) return "idle";
-  return log.matched ? "granted" : "denied";
-}
+const LIVE_MS = 700;
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [logs, setLogs] = useState<AccessLog[]>([]);
   const [health, setHealth] = useState<Health | null>(null);
-  const [now, setNow] = useState(() => Date.now());
+  const [live, setLive] = useState<LiveAccess | null>(null);
+  const [snapTick, setSnapTick] = useState(0);
+  const [snapFailed, setSnapFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -59,7 +56,6 @@ export default function DashboardPage() {
         setStats(statsData);
         setLogs(logsData.logs);
         if (healthData) setHealth(healthData);
-        setNow(Date.now());
         setError(null);
       } catch {
         if (cancelled) return;
@@ -72,6 +68,26 @@ export default function DashboardPage() {
     }
     loadData();
     const id = setInterval(loadData, POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadLive() {
+      try {
+        const data = await getLiveAccess();
+        if (cancelled) return;
+        setLive(data);
+        setSnapTick((n) => n + 1);
+      } catch {
+        if (!cancelled) setLive(null);
+      }
+    }
+    loadLive();
+    const id = setInterval(loadLive, LIVE_MS);
     return () => {
       cancelled = true;
       clearInterval(id);
@@ -107,28 +123,43 @@ export default function DashboardPage() {
   }, [streamFailed]);
 
   const online = !error;
-  const latest = logs[0];
-  const door: DoorState = doorStateFromLog(latest, now);
+  const door: LiveState = live?.state ?? "idle";
   const streamUrl = `${getStreamUrl(true)}?t=${streamKey}`;
 
   let doorLabel: string;
   let doorName: string;
   let doorInitial: string;
+  let doorMeta: string;
   switch (door) {
     case "granted":
       doorLabel = "Autorise";
-      doorName = latest?.full_name || "Identite reconnue";
-      doorInitial = (latest?.full_name || "A").charAt(0).toUpperCase();
+      doorName = live?.name || "Identite reconnue";
+      doorInitial = (live?.name || "A").charAt(0).toUpperCase();
+      doorMeta =
+        typeof live?.confidence === "number"
+          ? `score ${live.confidence.toFixed(2)}`
+          : (live?.label ?? "");
       break;
     case "denied":
       doorLabel = "Refuse";
       doorName = "Inconnu";
       doorInitial = "!";
+      doorMeta = live?.label ?? "Acces refuse";
+      break;
+    case "pending":
+      doorLabel = "En cours";
+      doorName = live?.label ?? "Analyse en cours";
+      doorInitial = "…";
+      doorMeta =
+        live && live.face_count > 1
+          ? `${live.face_count} visages`
+          : "Meme decision que le flux";
       break;
     case "idle":
       doorLabel = "En attente";
       doorName = "Personne devant la porte";
       doorInitial = "·";
+      doorMeta = "En attente d un visage";
       break;
     default: {
       const _exhaustive: never = door;
@@ -207,27 +238,20 @@ export default function DashboardPage() {
         <div className="card">
           <div className="card-title">Décision</div>
           <div className={`door door-${door}`} role="status">
+            {snapTick > 0 && (
+              <img
+                src={getSnapshotUrl(snapTick)}
+                alt="Image annotee de la decision en cours"
+                className="door-shot"
+                hidden={snapFailed}
+                onError={() => setSnapFailed(true)}
+                onLoad={() => setSnapFailed(false)}
+              />
+            )}
             <span className="door-badge">{doorInitial}</span>
             <span className="door-label">{doorLabel}</span>
             <span className="door-name">{doorName}</span>
-            <span className="door-meta">
-              {latest && door !== "idle" ? (
-                <>
-                  {new Date(latest.timestamp).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    second: "2-digit",
-                  })}
-                  {typeof latest.confidence === "number"
-                    ? ` · score ${latest.confidence.toFixed(2)}`
-                    : null}
-                </>
-              ) : latest ? (
-                <>Dernier passage : {latest.matched ? latest.full_name : "inconnu"}</>
-              ) : (
-                "En attente d un visage"
-              )}
-            </span>
+            <span className="door-meta">{doorMeta}</span>
           </div>
         </div>
       </section>

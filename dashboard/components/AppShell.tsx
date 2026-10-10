@@ -669,6 +669,17 @@ const styles = `
     background: var(--surface-2);
     box-shadow: inset 0 0 0 1px var(--border);
   }
+  .door-pending {
+    background: color-mix(in srgb, #d97706 14%, var(--surface-2));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, #d97706 40%, transparent);
+  }
+  .door-shot {
+    width: 100%;
+    height: 168px;
+    object-fit: cover;
+    border-radius: 10px;
+    background: #111;
+  }
   .door-badge {
     width: 88px; height: 88px; border-radius: 50%;
     display: inline-flex; align-items: center; justify-content: center;
@@ -690,18 +701,25 @@ const styles = `
     color: var(--muted);
     background: color-mix(in srgb, var(--muted) 12%, transparent);
   }
+  .door-pending .door-badge {
+    color: #d97706;
+    background: color-mix(in srgb, #d97706 18%, transparent);
+    box-shadow: 0 0 0 8px color-mix(in srgb, #d97706 10%, transparent);
+  }
   .door-label {
     font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
     text-transform: uppercase; color: var(--muted);
   }
   .door-granted .door-label { color: var(--green); }
   .door-denied .door-label { color: var(--red); }
+  .door-pending .door-label { color: #d97706; }
   .door-name {
     font-size: 22px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.15;
     max-width: 100%; overflow: hidden; text-overflow: ellipsis;
   }
   .door-granted .door-name { color: var(--green); }
   .door-denied .door-name { color: var(--red); }
+  .door-pending .door-name { color: #d97706; font-size: 16px; }
   .door-meta { font-size: 12.5px; color: var(--muted); line-height: 1.45; }
 
   @media (max-width: 860px) {

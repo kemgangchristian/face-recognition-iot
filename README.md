@@ -25,25 +25,25 @@ Le schéma ci-dessus est la source de vérité produit. Le diagramme suivant rep
 
 ```mermaid
 flowchart TB
-  subgraph runtime["Chemin porte — 100 % sur le Pi"]
-    CSI[Caméra CSI / rpicam-vid] --> YN[YuNet]
-    YN --> AC[alignCrop]
-    AC --> SF[SFace 128-d]
-    SF --> Q[Qualité + tracks]
-    Q --> LV[Vivacité parallaxe]
-    LV --> MT[1:N cosinus + min_margin]
-    MT --> SQL[(SQLite + Fernet)]
-    MT --> GPIO[Relais GPIO]
-    MT --> API[FastAPI :8000]
-    API --> UI[Dashboard Next.js statique]
+  subgraph runtime ["Chemin porte sur le Pi"]
+    CSI["Camera CSI, rpicam-vid"] --> YN["YuNet"]
+    YN --> AC["alignCrop"]
+    AC --> SF["SFace 128-d"]
+    SF --> Q["Qualite et tracks"]
+    Q --> LV["Vivacite parallaxe"]
+    LV --> MT["Cosinus 1 a N et min_margin"]
+    MT --> SQL["SQLite et Fernet"]
+    MT --> GPIO["Relais GPIO"]
+    MT --> API["FastAPI port 8000"]
+    API --> UI["Dashboard Next.js statique"]
   end
 
-  subgraph ops["Hors chemin — n’ouvre pas la porte"]
-    GH[GitHub] --> JK[Jenkins]
-    JK --> REG[GHCR ARM64]
-    REG --> SSH[SSH docker pull]
-    DISK[LUKS2 + Tang/Clevis]
-    BAK[Sauvegarde GPG quotidienne]
+  subgraph ops ["Hors chemin, n ouvre pas la porte"]
+    GH["GitHub"] --> JK["Jenkins"]
+    JK --> REG["GHCR ARM64"]
+    REG --> SSH["SSH docker pull"]
+    DISK["LUKS2, Tang et Clevis"]
+    BAK["Sauvegarde GPG quotidienne"]
   end
 ```
 

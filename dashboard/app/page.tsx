@@ -165,50 +165,45 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <section className="hero">
-        <div className="card">
-          <div className="card-title">
-            <IconCamera />
-            {streamFailed ? "Flux caméra indisponible" : "Entrée"}
-            {!streamFailed && streamLoaded && (
-              <span className="live">
-                <span className="live-dot" /> LIVE
-              </span>
-            )}
-          </div>
-
-          <div className="stream-wrap">
-            <img
-              ref={imgRef}
-              key={streamKey}
-              src={streamUrl}
-              alt="Flux caméra avec détection"
-              className="stream"
-              style={{ visibility: streamFailed ? "hidden" : "visible" }}
-              onError={() => setStreamFailed(true)}
-            />
-
-            {streamFailed && (
-              <div className="stream-placeholder" role="status">
-                <span className="stream-placeholder-icon">
-                  <IconVideoOff />
-                </span>
-                <strong>Aucun signal vidéo</strong>
-                <span>
-                  Vérifiez que la caméra et l&apos;API sont accessibles.
-                </span>
-              </div>
-            )}
-          </div>
+      <section className="card">
+        <div className="card-title">
+          <IconCamera />
+          {streamFailed ? "Flux caméra indisponible" : "Entrée"}
+          {!streamFailed && streamLoaded && (
+            <span className="live">
+              <span className="live-dot" /> LIVE
+            </span>
+          )}
         </div>
 
-        <div className="card">
-          <div className="card-title">Décision</div>
-          <div className={`door door-${door}`} role="status">
-            <p className="door-label">{doorLabel}</p>
-            <p className="door-name">{doorName}</p>
-            {doorMeta ? <p className="door-meta">{doorMeta}</p> : null}
-          </div>
+        <div className="stream-wrap">
+          <img
+            ref={imgRef}
+            key={streamKey}
+            src={streamUrl}
+            alt="Flux caméra avec détection"
+            className="stream"
+            style={{ visibility: streamFailed ? "hidden" : "visible" }}
+            onError={() => setStreamFailed(true)}
+          />
+
+          {streamFailed && (
+            <div className="stream-placeholder" role="status">
+              <span className="stream-placeholder-icon">
+                <IconVideoOff />
+              </span>
+              <strong>Aucun signal vidéo</strong>
+              <span>
+                Vérifiez que la caméra et l&apos;API sont accessibles.
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className={`door door-${door}`} role="status">
+          <p className="door-label">{doorLabel}</p>
+          <p className="door-name">{doorName}</p>
+          {doorMeta ? <p className="door-meta">{doorMeta}</p> : null}
         </div>
       </section>
 

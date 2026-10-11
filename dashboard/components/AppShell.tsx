@@ -625,25 +625,13 @@ const styles = `
     font-size: 11.5px; color: var(--muted);
   }
 
-  .hero {
-    display: grid;
-    grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.9fr);
-    gap: 14px;
-    margin-bottom: 16px;
-    align-items: stretch;
-  }
-  .hero .card { margin-bottom: 0; height: 100%; display: flex; flex-direction: column; }
-  .hero .stream-wrap { flex: 1; min-height: 280px; }
-
   .door {
-    flex: 1;
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
-    gap: 6px;
-    min-height: 180px;
-    padding: 8px 4px 8px 16px;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 14px;
+    margin-top: 12px;
+    padding: 2px 0 2px 12px;
     border-left: 3px solid var(--border);
   }
   .door-granted { border-left-color: var(--green); }
@@ -659,20 +647,15 @@ const styles = `
   .door-denied .door-label { color: var(--red); }
   .door-pending .door-label { color: #b45309; }
   .door-name {
-    font-size: 28px;
+    font-size: 18px;
     font-weight: 600;
-    letter-spacing: -0.03em;
-    line-height: 1.15;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
   }
   .door-meta {
     font-size: 14px;
     color: var(--muted);
     line-height: 1.4;
-  }
-
-  @media (max-width: 860px) {
-    .hero { grid-template-columns: 1fr; }
-    .hero .stream-wrap, .door { min-height: 240px; }
   }
 
   @media (max-width: 480px) {
